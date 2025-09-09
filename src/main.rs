@@ -18,15 +18,15 @@ struct Todo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct TodoConfig {
-    #[serde(default = "default_todo_pattern")]
-    todo_pattern: String,
+struct CodemarksConfig {
+    #[serde(default = "default_annotation_pattern")]
+    annotation_pattern: String,
 }
 
-impl Default for TodoConfig {
+impl Default for CodemarksConfig {
     fn default() -> Self {
         Self {
-            todo_pattern: default_todo_pattern(),
+            annotation_pattern: default_annotation_pattern(),
         }
     }
 }
@@ -44,30 +44,30 @@ impl Default for ProjectsDatabase {
     }
 }
 
-fn default_todo_pattern() -> String {
-    r"(?i)(?://|#|<!--|\*)\s*(?:TODO|TO\s+DO)\s*:?\s*(.*)$".to_string()
+fn default_annotation_pattern() -> String {
+    r"(?i)(?://|#|<!--|\*)\s*(?:TODO|FIXME|HACK)\s*:?\s*(.*)$".to_string()
 }
 
 fn get_global_config_path() -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let home = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE"))?;
-    let config_dir = Path::new(&home).join(".isju");
-    fs::create_dir_all(&config_dir)?;
+    let home_dir = std::env::var("HOME").map_err(|_| "Could not find HOME environment variable")?;
+    let config_dir = PathBuf::from(home_dir).join(".codemarks");
+    std::fs::create_dir_all(&config_dir)?;
     Ok(config_dir.join("config.json"))
 }
 
 fn get_global_projects_path() -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let home = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE"))?;
-    let config_dir = Path::new(&home).join(".isju");
-    fs::create_dir_all(&config_dir)?;
+    let home_dir = std::env::var("HOME").map_err(|_| "Could not find HOME environment variable")?;
+    let config_dir = PathBuf::from(home_dir).join(".codemarks");
+    std::fs::create_dir_all(&config_dir)?;
     Ok(config_dir.join("projects.json"))
 }
 
-fn load_global_config() -> TodoConfig {
+fn load_global_config() -> CodemarksConfig {
     match get_global_config_path() {
         Ok(config_path) => {
             if config_path.exists() {
                 if let Ok(content) = fs::read_to_string(&config_path) {
-                    if let Ok(config) = serde_json::from_str::<TodoConfig>(&content) {
+                    if let Ok(config) = serde_json::from_str::<CodemarksConfig>(&content) {
                         return config;
                     }
                 }
@@ -75,10 +75,10 @@ fn load_global_config() -> TodoConfig {
         }
         Err(_) => {}
     }
-    TodoConfig::default()
+    CodemarksConfig::default()
 }
 
-fn save_global_config(config: &TodoConfig) -> Result<(), Box<dyn std::error::Error>> {
+fn save_global_config(config: &CodemarksConfig) -> Result<(), Box<dyn std::error::Error>> {
     let config_path = get_global_config_path()?;
     let json_content = serde_json::to_string_pretty(config)?;
     fs::write(config_path, json_content)?;
@@ -108,17 +108,10 @@ fn save_global_projects(projects_db: &ProjectsDatabase) -> Result<(), Box<dyn st
     Ok(())
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct TodoDatabase {
-    #[serde(default)]
-    config: TodoConfig,
-    projects: HashMap<String, Vec<Todo>>,
-}
-
-/// Simple CLI tool
+/// CodeMarks - Scan and manage code annotations
 #[derive(Parser)]
-#[command(name = "isju")]
-#[command(about = "A simple CLI tool for managing TODOs", long_about = None)]
+#[command(name = "codemarks")]
+#[command(about = "A CLI tool for scanning and managing code annotations (TODO, FIXME, HACK)", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -128,13 +121,13 @@ struct Cli {
 enum Commands {
     /// Show the version
     Version,
-    /// Scan a directory for TODOs
+    /// Scan a directory for code annotations (TODO, FIXME, HACK)
     Scan {
         /// Directory to scan
         #[arg(short, long, default_value = ".")]
         directory: Option<PathBuf>,
     },
-    /// List all TODOs from the global projects database
+    /// List all code annotations from the global projects database
     List,
     /// Manage global configuration
     Config {
@@ -147,27 +140,61 @@ enum Commands {
 enum ConfigAction {
     /// Show current global configuration
     Show,
-    /// Set the global TODO pattern
+    /// Set the global pattern for code annotations
     SetPattern {
-        /// The regex pattern to use for matching TODOs
+        /// The regex pattern to use for matching code annotations
         pattern: String,
     },
     /// Reset to default pattern
     Reset,
 }
 
+fn initialize_codemarks() -> Result<(), Box<dyn std::error::Error>> {
+    // Ensure config directory exists and create default files if missing
+    let home_dir = std::env::var("HOME").map_err(|_| "Could not find HOME environment variable")?;
+    let config_dir = PathBuf::from(home_dir).join(".codemarks");
+    std::fs::create_dir_all(&config_dir)?;
+
+    // Check and create config.json if it doesn't exist
+    let config_path = config_dir.join("config.json");
+    if !config_path.exists() {
+        let default_config = CodemarksConfig::default();
+        let config_json = serde_json::to_string_pretty(&default_config)?;
+        std::fs::write(&config_path, config_json)?;
+        println!("Created default config file at {}", config_path.display());
+    }
+
+    // Check and create projects.json if it doesn't exist
+    let projects_path = config_dir.join("projects.json");
+    if !projects_path.exists() {
+        let default_projects = ProjectsDatabase {
+            projects: HashMap::new(),
+        };
+        let projects_json = serde_json::to_string_pretty(&default_projects)?;
+        std::fs::write(&projects_path, projects_json)?;
+        println!("Created default projects file at {}", projects_path.display());
+    }
+
+    Ok(())
+}
+
 fn main() {
+    // Initialize codemarks directory and files
+    if let Err(e) = initialize_codemarks() {
+        eprintln!("Warning: Failed to initialize codemarks: {}", e);
+    }
+
     let cli = Cli::parse();
 
     match cli.command {
         Commands::Version => {
             // Hardcoded version string
-            println!("isju version 1.0.0");
+            println!("codemarks version 1.0.0");
         }
         Commands::Scan { directory } => {
             let dir = directory.as_ref().map(|p| p.as_path()).unwrap_or(Path::new("."));
             match scan_directory(dir) {
-                Ok(count) => println!("Found {} TODOs and saved to global projects database", count),
+                Ok(count) => println!("Found {} code annotations and saved to global projects database", count),
                 Err(e) => eprintln!("Error scanning directory: {}", e),
             }
         }
@@ -190,7 +217,7 @@ fn scan_directory(directory: &Path) -> Result<usize, Box<dyn std::error::Error>>
     let config = load_global_config();
     let mut projects_db = load_global_projects();
     
-    let todo_regex = Regex::new(&config.todo_pattern)?;
+    let todo_regex = Regex::new(&config.annotation_pattern)?;
     
     // Get project name from directory
     let project_name = directory
@@ -203,14 +230,14 @@ fn scan_directory(directory: &Path) -> Result<usize, Box<dyn std::error::Error>>
     // Get the canonical directory path for making relative paths
     let canonical_dir = directory.canonicalize()?;
     
-    // Mark all existing TODOs for this project as potentially resolved
+    // Mark all existing annotations for this project as potentially resolved
     if let Some(existing_todos) = projects_db.projects.get_mut(&project_name) {
         for todo in existing_todos.iter_mut() {
             todo.resolved = true;
         }
     }
 
-    // Collect current TODOs
+    // Collect current annotations
     let mut current_todos = Vec::new();
 
     // Walk through all files in directory
@@ -246,7 +273,7 @@ fn scan_directory(directory: &Path) -> Result<usize, Box<dyn std::error::Error>>
             }
         }
 
-        // Read file and search for TODOs
+        // Read file and search for code annotations
         if let Ok(file) = fs::File::open(file_path) {
             let reader = BufReader::new(file);
             for (line_number, line) in reader.lines().enumerate() {
@@ -287,15 +314,15 @@ fn scan_directory(directory: &Path) -> Result<usize, Box<dyn std::error::Error>>
         }
     }
 
-    // Update or add TODOs for this project
+    // Update or add annotations for this project
     if let Some(existing_todos) = projects_db.projects.get_mut(&project_name) {
-        // Check each current TODO against existing ones
+        // Check each current annotation against existing ones
         for current_todo in current_todos {
             let mut found = false;
             for existing_todo in existing_todos.iter_mut() {
                 if existing_todo.file == current_todo.file &&
                    existing_todo.description == current_todo.description {
-                    // TODO still exists, mark as not resolved and update line number
+                    // Annotation still exists, mark as not resolved and update line number
                     existing_todo.resolved = false;
                     existing_todo.line_number = current_todo.line_number;
                     found = true;
@@ -303,16 +330,16 @@ fn scan_directory(directory: &Path) -> Result<usize, Box<dyn std::error::Error>>
                 }
             }
             if !found {
-                // New TODO, add it
+                // New annotation, add it
                 existing_todos.push(current_todo);
             }
         }
     } else {
-        // No existing TODOs for this project, add all current ones
+        // No existing annotations for this project, add all current ones
         projects_db.projects.insert(project_name.clone(), current_todos);
     }
 
-    // Calculate total count of active (non-resolved) TODOs
+    // Calculate total count of active (non-resolved) annotations
     let total_count = projects_db.projects.values()
         .flat_map(|todos| todos.iter())
         .filter(|todo| !todo.resolved)
@@ -328,11 +355,11 @@ fn list_todos() -> Result<(), Box<dyn std::error::Error>> {
     let projects_db = load_global_projects();
 
     if projects_db.projects.is_empty() {
-        println!("No TODOs found. Run 'isju scan' first to scan for TODOs.");
+        println!("No code annotations found. Run 'codemarks scan' first to scan for annotations.");
         return Ok(());
     }
 
-    // Display TODOs grouped by project
+    // Display annotations grouped by project
     for (project_name, todos) in &projects_db.projects {
         if todos.is_empty() {
             continue;
@@ -358,8 +385,8 @@ fn handle_config(action: ConfigAction) -> Result<(), Box<dyn std::error::Error>>
     match action {
         ConfigAction::Show => {
             let config = load_global_config();
-            println!("Global TODO pattern:");
-            println!("{}", config.todo_pattern);
+            println!("Global code annotation pattern:");
+            println!("{}", config.annotation_pattern);
             
             if let Ok(config_path) = get_global_config_path() {
                 println!("\nConfig file location: {}", config_path.display());
@@ -373,11 +400,11 @@ fn handle_config(action: ConfigAction) -> Result<(), Box<dyn std::error::Error>>
             // Validate the regex pattern
             match Regex::new(&pattern) {
                 Ok(_) => {
-                    let config = TodoConfig {
-                        todo_pattern: pattern.clone(),
+                    let config = CodemarksConfig {
+                        annotation_pattern: pattern.clone(),
                     };
                     save_global_config(&config)?;
-                    println!("Global TODO pattern updated to: {}", pattern);
+                    println!("Global code annotation pattern updated to: {}", pattern);
                 }
                 Err(e) => {
                     eprintln!("Invalid regex pattern: {}", e);
@@ -386,9 +413,9 @@ fn handle_config(action: ConfigAction) -> Result<(), Box<dyn std::error::Error>>
             }
         }
         ConfigAction::Reset => {
-            let config = TodoConfig::default();
+            let config = CodemarksConfig::default();
             save_global_config(&config)?;
-            println!("Global TODO pattern reset to default: {}", config.todo_pattern);
+            println!("Global code annotation pattern reset to default: {}", config.annotation_pattern);
         }
     }
     Ok(())
