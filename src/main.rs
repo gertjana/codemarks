@@ -7,12 +7,10 @@ mod scan;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-// use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
-// use walkdir::WalkDir;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-struct Todo {
+struct Codemark {
     file: String,
     line_number: usize,
     description: String,
@@ -36,7 +34,7 @@ impl Default for CodemarksConfig {
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 struct ProjectsDatabase {
-    projects: HashMap<String, Vec<Todo>>,
+    projects: HashMap<String, Vec<Codemark>>,
 }
 
 fn default_annotation_pattern() -> String {
@@ -97,7 +95,6 @@ fn save_global_projects(projects_db: &ProjectsDatabase) -> Result<(), Box<dyn st
     Ok(())
 }
 
-/// CodeMarks - Scan and manage code annotations
 #[derive(Parser)]
 #[command(name = "codemarks")]
 #[command(about = "A CLI tool for scanning and managing code annotations (TODO, FIXME, HACK)", long_about = None)]
@@ -108,33 +105,23 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Show the version
     Version,
-    /// Scan a directory for code annotations (TODO, FIXME, HACK)
     Scan {
-        /// Directory to scan
         #[arg(short, long, default_value = ".")]
         directory: Option<PathBuf>,
-        /// Additional patterns to ignore (files or directories)
         #[arg(short, long)]
         ignore: Vec<String>,
     },
-    /// List all code annotations from the global projects database
     List,
-    /// Manage global configuration
     Config {
         #[command(subcommand)]
         action: ConfigAction,
     },
-    /// Run in CI mode: scan for codemarks and return non-zero exit code if any are found
     Ci {
-        /// Directory to scan
         #[arg(short, long, default_value = ".")]
         directory: Option<PathBuf>,
-        /// Pattern to use for matching code annotations (overrides config)
         #[arg(short, long)]
         pattern: Option<String>,
-        /// Additional patterns to ignore (files or directories)
         #[arg(short, long)]
         ignore: Vec<String>,
     },
@@ -142,14 +129,8 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum ConfigAction {
-    /// Show current global configuration
     Show,
-    /// Set the global pattern for code annotations
-    SetPattern {
-        /// The regex pattern to use for matching code annotations
-        pattern: String,
-    },
-    /// Reset to default pattern
+    SetPattern { pattern: String },
     Reset,
 }
 
@@ -194,12 +175,11 @@ fn main() {
             println!("codemarks version {}", env!("CARGO_PKG_VERSION"));
         }
         Commands::Scan { directory, ignore } => {
-            let dir = directory
-                .as_deref()
-                .unwrap_or(Path::new("."));
+            let dir = directory.as_deref().unwrap_or(Path::new("."));
             match scan::scan_directory(dir, &ignore) {
-                Ok(count) => println!(
-                    "Found {count} code annotations and saved to global projects database"),
+                Ok(count) => {
+                    println!("Found {count} code annotations and saved to global projects database")
+                }
                 Err(e) => eprintln!("Error scanning directory: {e}"),
             }
         }
@@ -211,11 +191,13 @@ fn main() {
             Ok(()) => {}
             Err(e) => eprintln!("Error managing config: {e}"),
         },
-        Commands::Ci { directory, pattern, ignore } => {
+        Commands::Ci {
+            directory,
+            pattern,
+            ignore,
+        } => {
             let dir = directory.as_deref().unwrap_or(Path::new("."));
             ci::run_ci(dir, pattern, &ignore);
         }
     }
 }
-
-// ...existing code...
