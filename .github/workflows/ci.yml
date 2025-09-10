@@ -103,7 +103,7 @@ jobs:
         cp target/${{ matrix.target }}/release/codemarks.exe ${{ matrix.artifact-name }}
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ matrix.artifact-name }}
         path: ${{ matrix.artifact-name }}
@@ -136,4 +136,4 @@ jobs:
       run: chmod +x codemarks-linux-x86_64
 
     - name: Scan project for codemarks
-      run: ./codemarks-linux-x86_64 ci --ignore "README.md" --ignore "*.md"
+      run: ./codemarks-linux-x86_64 ci --ignore "*.md"
