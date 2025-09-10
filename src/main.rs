@@ -4,6 +4,7 @@ mod ci;
 mod config;
 mod list;
 mod scan;
+mod watch;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -97,7 +98,10 @@ fn save_global_projects(projects_db: &ProjectsDatabase) -> Result<(), Box<dyn st
 
 #[derive(Parser)]
 #[command(name = "codemarks")]
-#[command(about = "A CLI tool for scanning and managing code annotations (TODO, FIXME, HACK)", long_about = None)]
+#[command(
+    about = "A CLI tool for scanning and managing code annotations (TODO, FIXME, HACK)",
+    long_about = "Codemarks helps you track code annotations across your projects. Scan directories for TODO, FIXME, and HACK comments, watch for real-time changes, and integrate with CI/CD pipelines."
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -105,25 +109,47 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Show version information
     Version,
+    /// Scan a directory for code annotations
     Scan {
+        /// Directory to scan for annotations
         #[arg(short, long, default_value = ".")]
         directory: Option<PathBuf>,
+        /// Patterns to ignore when scanning files
         #[arg(short, long)]
         ignore: Vec<String>,
     },
+    /// List all found annotations from the global database
     List,
+    /// Manage global configuration settings
     Config {
         #[command(subcommand)]
         action: ConfigAction,
     },
+    /// Run in CI mode (returns non-zero exit code if annotations found)
     Ci {
+        /// Directory to scan for annotations
         #[arg(short, long, default_value = ".")]
         directory: Option<PathBuf>,
+        /// Custom regex pattern for annotations
         #[arg(short, long)]
         pattern: Option<String>,
+        /// Patterns to ignore when scanning files
         #[arg(short, long)]
         ignore: Vec<String>,
+    },
+    /// Watch directory for changes and scan modified files in real-time
+    Watch {
+        /// Directory to watch for changes
+        #[arg(short, long, default_value = ".")]
+        directory: Option<PathBuf>,
+        /// Patterns to ignore when watching files
+        #[arg(short, long)]
+        ignore: Vec<String>,
+        /// Debounce time in milliseconds to avoid duplicate events
+        #[arg(long, default_value = "500")]
+        debounce: Option<u64>,
     },
 }
 
@@ -198,6 +224,17 @@ fn main() {
         } => {
             let dir = directory.as_deref().unwrap_or(Path::new("."));
             ci::run_ci(dir, pattern, &ignore);
+        }
+        Commands::Watch {
+            directory,
+            ignore,
+            debounce,
+        } => {
+            let dir = directory.as_deref().unwrap_or(Path::new("."));
+            match watch::watch_directory(dir, &ignore, debounce) {
+                Ok(()) => {}
+                Err(e) => eprintln!("Error watching directory: {e}"),
+            }
         }
     }
 }

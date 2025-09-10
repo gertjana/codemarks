@@ -8,6 +8,7 @@ Codemarks is a CLI tool for scanning and managing code annotations such as `TODO
 - Manage a global configuration for annotation patterns
 - Store and update annotation status (resolved/unresolved)
 - CI/CD integration with non-zero exit codes for found annotations
+- **Watch mode for real-time monitoring** - automatically detect and scan changed files
 
 ## Installation
 Build from source using Cargo:
@@ -63,6 +64,26 @@ The CI command will:
 - Return exit code 0 if no annotations are found
 - Return exit code 1 if annotations are found (causing CI pipelines to fail)
 
+### Watch for Changes
+Watch a directory for file changes and automatically scan any modified files for annotations. This is perfect for development environments where you want real-time feedback on code annotations.
+
+```sh
+./codemarks watch
+```
+
+#### Watch Command Options
+- Watch specific directory: `./codemarks watch --directory src/`
+- Ignore files/directories: `./codemarks watch --ignore "*.md" --ignore "docs/"`
+- Set debounce time: `./codemarks watch --debounce 1000` (in milliseconds)
+- Combine options: `./codemarks watch --directory src/ --ignore "test_*" --debounce 750`
+
+The watch command will:
+- Monitor the specified directory for file system changes
+- Automatically scan modified files for annotations
+- Update the global projects database in real-time
+- Respect `.gitignore` patterns and custom ignore rules
+- Use debouncing to avoid duplicate scans of rapidly changing files
+
 ### Manage Configuration
 Show or update the global regex pattern for code annotations.
 
@@ -105,6 +126,9 @@ You can customize the regex pattern to match your team's conventions.
 
 # Check for annotations in CI
 ./codemarks ci
+
+# Watch for changes in real-time
+./codemarks watch
 ```
 
 ### Advanced CI Usage
@@ -117,6 +141,18 @@ You can customize the regex pattern to match your team's conventions.
 
 # Check multiple directories with different patterns
 ./codemarks ci --directory "src/" --directory "lib/" --pattern "FIXME|HACK"
+```
+
+### Watch Mode Examples
+```sh
+# Watch current directory for changes
+./codemarks watch
+
+# Watch specific directory with ignore patterns
+./codemarks watch --directory src/ --ignore "*.test.js" --ignore "*.spec.ts"
+
+# Watch with custom debounce time (useful for large projects)
+./codemarks watch --debounce 1000 --ignore "node_modules/" --ignore "target/"
 ```
 
 ## License
