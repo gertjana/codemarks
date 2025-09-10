@@ -183,7 +183,7 @@ fn main() {
                 Err(e) => eprintln!("Error scanning directory: {e}"),
             }
         }
-        Commands::List => match list::list_todos() {
+        Commands::List => match list::list_codemarks() {
             Ok(()) => {}
             Err(e) => eprintln!("Error listing codemarks: {e}"),
         },

@@ -3,22 +3,22 @@
 
 use crate::load_global_projects;
 
-pub fn list_todos() -> Result<(), Box<dyn std::error::Error>> {
+pub fn list_codemarks() -> Result<(), Box<dyn std::error::Error>> {
     let projects_db = load_global_projects();
     if projects_db.projects.is_empty() {
         println!("No code annotations found. Run 'codemarks scan' first to scan for annotations.");
         return Ok(());
     }
-    for (project_name, todos) in &projects_db.projects {
-        if todos.is_empty() {
+    for (project_name, codemarks) in &projects_db.projects {
+        if codemarks.is_empty() {
             continue;
         }
         println!("{project_name}");
-        for todo in todos {
-            let resolved_prefix = if todo.resolved { "✅ " } else { "   " };
+        for codemark in codemarks {
+            let resolved_prefix = if codemark.resolved { "✅ " } else { "   " };
             println!(
                 "{}{}:{} {}",
-                resolved_prefix, todo.file, todo.line_number, todo.description
+                resolved_prefix, codemark.file, codemark.line_number, codemark.description
             );
         }
         if projects_db.projects.len() > 1 {
