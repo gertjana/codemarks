@@ -186,14 +186,14 @@ pub fn watch_directory(
         .to_string_lossy()
         .to_string();
 
-    println!("👀 Watching directory: {}", directory.display());
-    println!("📝 Project name: {project_name}");
+    println!("Watching directory: {}", directory.display());
+    println!("Project name: {project_name}");
     if !ignore_patterns.is_empty() {
-        println!("🚫 Ignore patterns: {ignore_patterns:?}");
+        println!("Ignore patterns: {ignore_patterns:?}");
     }
-    println!("📋 Annotation pattern: {}", config.annotation_pattern);
-    println!("⏱️  Debounce: {}ms", debounce_ms.unwrap_or(500));
-    println!("🚀 Press Ctrl+C to stop watching...\n");
+    println!("Annotation pattern: {}", config.annotation_pattern);
+    println!("Debounce: {}ms", debounce_ms.unwrap_or(500));
+    println!("Press Ctrl+C to stop watching...\n");
 
     // Create a channel to receive file system events
     let (tx, rx) = channel();
@@ -255,12 +255,12 @@ pub fn watch_directory(
                                     ) {
                                         Ok(count) => {
                                             if count > 0 {
-                                                println!("✅ Updated project database\n");
+                                                println!("Updated project database\n");
                                             }
                                         }
                                         Err(e) => {
                                             eprintln!(
-                                                "❌ Error processing {}: {}\n",
+                                                "Error processing {}: {}\n",
                                                 path.display(),
                                                 e
                                             );
