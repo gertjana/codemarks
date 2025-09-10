@@ -103,7 +103,7 @@ jobs:
         cp target/${{ matrix.target }}/release/codemarks.exe ${{ matrix.artifact-name }}
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact-name }}
         path: ${{ matrix.artifact-name }}
