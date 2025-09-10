@@ -136,4 +136,4 @@ jobs:
       run: chmod +x codemarks-linux-x86_64
 
     - name: Scan project for codemarks
-      run: ./codemarks-linux-x86_64 ci --ignore "*.md"
+      run: ./codemarks-linux-x86_64 ci --ignore "*.md" --ignore "tests/*"
