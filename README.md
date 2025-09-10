@@ -2,14 +2,6 @@
 
 Codemarks is a CLI tool for scanning and managing code annotations such as `TODO`, `FIXME`, and `HACK` in your codebase. It helps you keep track of outstanding tasks and issues directly from your source code comments, storing them in a global database for easy review.
 
-## Features
-- Scan directories for code annotations (TODO, FIXME, HACK)
-- List all found annotations grouped by project
-- Manage a global configuration for annotation patterns
-- Store and update annotation status (resolved/unresolved)
-- CI/CD integration with non-zero exit codes for found annotations
-- **Watch mode for real-time monitoring** - automatically detect and scan changed files
-
 ## Installation
 Build from source using Cargo:
 
@@ -45,6 +37,26 @@ List all code annotations found across scanned projects.
 ```sh
 ./codemarks list
 ```
+
+### Clean Resolved Annotations
+Remove resolved annotations from the global database. This helps keep your database clean by removing annotations that have been completed.
+
+```sh
+./codemarks clean
+```
+
+#### Clean Command Options
+- Preview what would be removed: `./codemarks clean --dry-run`
+- Clean specific project only: `./codemarks clean --project "my_project"`
+- Combine options: `./codemarks clean --dry-run --project "my_project"`
+
+The clean command will:
+- Remove all annotations marked as resolved (`resolved: true`) from the database
+- Preserve unresolved annotations for continued tracking
+- Remove entire projects if all their annotations are resolved
+- Show detailed summary of what was removed
+
+Use the `--dry-run` option to preview what would be cleaned before making changes.
 
 ### CI/CD Mode
 Run in CI mode to scan for codemarks and return a non-zero exit code if any are found. Perfect for continuous integration pipelines.
@@ -123,6 +135,12 @@ You can customize the regex pattern to match your team's conventions.
 
 # List all found annotations
 ./codemarks list
+
+# Clean resolved annotations
+./codemarks clean
+
+# Preview what would be cleaned
+./codemarks clean --dry-run
 
 # Check for annotations in CI
 ./codemarks ci

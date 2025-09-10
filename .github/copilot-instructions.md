@@ -11,6 +11,7 @@
 - **MUST** run `cargo check` after any code modifications
 - **MUST** resolve all compilation errors before concluding
 - **MUST** run `cargo fmt --all` and `cargo clippy` when finished with a task and rust files were modified
+- **MUST** ensure the README.md and other documentation files are updated if relevant code or usage changes
 - **SHOULD** follow clippy suggestions
 - **SHOULD** address warnings when practical
 - **EXPLAIN** any remaining warnings if they cannot be resolved
@@ -23,6 +24,8 @@
 - **PREFER** small, focused functions over large monolithic ones
 - **USE** the `ignore` crate for file traversal to respect `.gitignore`
 - **MAINTAIN** modular structure with separate files for each command
+- **ENSURE** cross-platform compatibility (Linux, macOS, Windows)
+- **WHEN USING**  variables in formatted strings, put the variable inside `{}` rather than as arguments to the format string
 
 ### 3. CLI Design Principles
 

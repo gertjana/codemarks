@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 // use regex::Regex;
 mod ci;
+mod clean;
 mod config;
 mod list;
 mod scan;
@@ -153,6 +154,15 @@ enum Commands {
         #[arg(long, default_value = "500")]
         debounce: Option<u64>,
     },
+    /// Remove resolved annotations from the global database
+    Clean {
+        /// Show what would be removed without actually removing it
+        #[arg(short = 'n', long)]
+        dry_run: bool,
+        /// Specific project to clean (if not specified, cleans all projects)
+        #[arg(short, long)]
+        project: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -238,6 +248,10 @@ fn main() {
                 Err(e) => eprintln!("Error watching directory: {e}"),
             }
         }
+        Commands::Clean { dry_run, project } => match clean::clean_resolved(dry_run, project) {
+            Ok(()) => {}
+            Err(e) => eprintln!("Error cleaning resolved annotations: {e}"),
+        },
     }
 }
 
@@ -447,5 +461,18 @@ mod tests {
         // Load projects when no file exists should return default
         let projects = load_global_projects();
         assert!(projects.projects.is_empty());
+    }
+
+    #[test]
+    fn test_clean_resolved_functionality() {
+        let _temp_home = setup_temp_home();
+
+        // Create a simple test to verify clean function exists and doesn't crash
+        let result = crate::clean::clean_resolved(true, None);
+        assert!(result.is_ok());
+
+        // Test with project filter
+        let result = crate::clean::clean_resolved(true, Some("nonexistent".to_string()));
+        assert!(result.is_ok());
     }
 }

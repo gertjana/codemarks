@@ -263,3 +263,73 @@ fn test_scan_nonexistent_directory() {
         .success() // scan command doesn't exit with error, just prints to stderr
         .stderr(predicate::str::contains("Error scanning directory"));
 }
+
+#[test]
+fn test_clean_command_help() {
+    let (mut cmd, _temp_home) = cmd_with_temp_home();
+
+    cmd.arg("clean")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Remove resolved annotations from the global database",
+        ))
+        .stdout(predicate::str::contains("--dry-run"))
+        .stdout(predicate::str::contains("--project"));
+}
+
+#[test]
+fn test_clean_command_empty_database() {
+    let (mut cmd, _temp_home) = cmd_with_temp_home();
+
+    cmd.arg("clean")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "No resolved annotations found to clean",
+        ));
+}
+
+#[test]
+fn test_clean_command_dry_run() {
+    let (mut cmd, temp_home) = cmd_with_temp_home();
+
+    // First, scan some files to populate the database
+    let test_dir = temp_home.path().join("test_project");
+    fs::create_dir_all(&test_dir).expect("Failed to create test directory");
+    create_test_files(&test_dir);
+
+    // Scan to populate database
+    cmd.arg("scan")
+        .arg("--directory")
+        .arg(&test_dir)
+        .assert()
+        .success();
+
+    // Test dry run when no resolved items exist
+    let (mut cmd2, _) = cmd_with_temp_home();
+    cmd2.env("HOME", temp_home.path());
+    cmd2.arg("clean")
+        .arg("--dry-run")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "No resolved annotations found to clean",
+        ));
+}
+
+#[test]
+fn test_clean_command_with_project_filter() {
+    let (mut cmd, _temp_home) = cmd_with_temp_home();
+
+    // Test clean with specific project filter on empty database
+    cmd.arg("clean")
+        .arg("--project")
+        .arg("nonexistent_project")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "No resolved annotations found to clean",
+        ));
+}
