@@ -8,11 +8,26 @@ use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
-use crate::{Codemark, load_global_config, load_global_projects, save_global_projects};
+use crate::{
+    Codemark, load_global_config, load_global_config_no_storage, load_global_projects,
+    load_global_projects_no_storage, save_global_projects, save_global_projects_no_storage,
+};
 
-pub fn scan_directory(directory: &Path, ignore_patterns: &[String]) -> Result<usize> {
-    let config = load_global_config();
-    let mut projects_db = load_global_projects();
+pub fn scan_directory(
+    directory: &Path,
+    ignore_patterns: &[String],
+    no_storage: bool,
+) -> Result<usize> {
+    let config = if no_storage {
+        load_global_config_no_storage()
+    } else {
+        load_global_config()
+    };
+    let mut projects_db = if no_storage {
+        load_global_projects_no_storage()
+    } else {
+        load_global_projects()
+    };
     // Use the original pattern for matching only
     let codemark_regex = Regex::new(&config.annotation_pattern)?;
     let project_name = directory
@@ -103,7 +118,11 @@ pub fn scan_directory(directory: &Path, ignore_patterns: &[String]) -> Result<us
         .flat_map(|codemarks| codemarks.iter())
         .filter(|codemark| !codemark.resolved)
         .count();
-    save_global_projects(&projects_db)?;
+    if no_storage {
+        save_global_projects_no_storage(&projects_db)?;
+    } else {
+        save_global_projects(&projects_db)?;
+    }
     Ok(total_count)
 }
 

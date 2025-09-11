@@ -83,8 +83,14 @@ fn test_process_changed_file_ignored() {
     let ignore_patterns = vec!["ignored.txt".to_string()];
     let pattern = Regex::new(r"(?i)(?://|#|<!--)\s*(?:TODO|FIXME|HACK|NOTE|BUG|OPTIMIZE|REVIEW)(?:\([^)]*\))?\s*:?\s*(.*)").unwrap();
 
-    let result =
-        process_changed_file(&test_file, &ignore_patterns, &pattern, "test_project").unwrap();
+    let result = process_changed_file(
+        &test_file,
+        &ignore_patterns,
+        &pattern,
+        "test_project",
+        false,
+    )
+    .unwrap();
     assert_eq!(result, 0);
 }
 
@@ -95,8 +101,14 @@ fn test_process_changed_file_nonexistent() {
     let ignore_patterns = vec![];
     let pattern = Regex::new(r"(?i)(?://|#|<!--)\s*(?:TODO|FIXME|HACK|NOTE|BUG|OPTIMIZE|REVIEW)(?:\([^)]*\))?\s*:?\s*(.*)").unwrap();
 
-    let result =
-        process_changed_file(nonexistent_file, &ignore_patterns, &pattern, "test_project").unwrap();
+    let result = process_changed_file(
+        nonexistent_file,
+        &ignore_patterns,
+        &pattern,
+        "test_project",
+        false,
+    )
+    .unwrap();
     assert_eq!(result, 0);
 }
 
@@ -114,8 +126,14 @@ fn test_process_changed_file_with_annotations() {
     let ignore_patterns = vec![];
     let pattern = Regex::new(r"(?i)(?://|#|<!--)\s*(?:TODO|FIXME|HACK|NOTE|BUG|OPTIMIZE|REVIEW)(?:\([^)]*\))?\s*:?\s*(.*)").unwrap();
 
-    let result =
-        process_changed_file(&test_file, &ignore_patterns, &pattern, "test_project").unwrap();
+    let result = process_changed_file(
+        &test_file,
+        &ignore_patterns,
+        &pattern,
+        "test_project",
+        false,
+    )
+    .unwrap();
     assert_eq!(result, 2); // Should find 2 annotations
 }
 
@@ -129,8 +147,14 @@ fn test_process_changed_file_empty_file() {
     let ignore_patterns = vec![];
     let pattern = Regex::new(r"(?i)(?://|#|<!--)\s*(?:TODO|FIXME|HACK|NOTE|BUG|OPTIMIZE|REVIEW)(?:\([^)]*\))?\s*:?\s*(.*)").unwrap();
 
-    let result =
-        process_changed_file(&test_file, &ignore_patterns, &pattern, "test_project").unwrap();
+    let result = process_changed_file(
+        &test_file,
+        &ignore_patterns,
+        &pattern,
+        "test_project",
+        false,
+    )
+    .unwrap();
     assert_eq!(result, 0);
 }
 
@@ -145,8 +169,14 @@ fn test_process_changed_file_binary_file() {
     let ignore_patterns = vec![];
     let pattern = Regex::new(r"(?i)(?://|#|<!--)\s*(?:TODO|FIXME|HACK|NOTE|BUG|OPTIMIZE|REVIEW)(?:\([^)]*\))?\s*:?\s*(.*)").unwrap();
 
-    let result =
-        process_changed_file(&binary_file, &ignore_patterns, &pattern, "test_project").unwrap();
+    let result = process_changed_file(
+        &binary_file,
+        &ignore_patterns,
+        &pattern,
+        "test_project",
+        false,
+    )
+    .unwrap();
     assert_eq!(result, 0); // Binary files should return 0
 }
 

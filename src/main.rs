@@ -75,10 +75,20 @@ pub fn load_global_config() -> CodemarksConfig {
     CodemarksConfig::default()
 }
 
+#[must_use]
+pub fn load_global_config_no_storage() -> CodemarksConfig {
+    CodemarksConfig::default()
+}
+
 pub fn save_global_config(config: &CodemarksConfig) -> Result<()> {
     let config_path = get_global_config_path()?;
     let json_content = serde_json::to_string_pretty(config)?;
     fs::write(config_path, json_content)?;
+    Ok(())
+}
+
+pub fn save_global_config_no_storage(_config: &CodemarksConfig) -> Result<()> {
+    // No-op when storage is disabled
     Ok(())
 }
 
@@ -96,10 +106,20 @@ pub fn load_global_projects() -> ProjectsDatabase {
     ProjectsDatabase::default()
 }
 
+#[must_use]
+pub fn load_global_projects_no_storage() -> ProjectsDatabase {
+    ProjectsDatabase::default()
+}
+
 pub fn save_global_projects(projects_db: &ProjectsDatabase) -> Result<()> {
     let projects_path = get_global_projects_path()?;
     let json_content = serde_json::to_string_pretty(projects_db)?;
     fs::write(projects_path, json_content)?;
+    Ok(())
+}
+
+pub fn save_global_projects_no_storage(_projects_db: &ProjectsDatabase) -> Result<()> {
+    // No-op when storage is disabled
     Ok(())
 }
 
@@ -110,6 +130,10 @@ pub fn save_global_projects(projects_db: &ProjectsDatabase) -> Result<()> {
     long_about = "Codemarks helps you track code annotations across your projects. Scan directories for TODO, FIXME, and HACK comments, watch for real-time changes, and integrate with CI/CD pipelines."
 )]
 struct Cli {
+    /// Disable storage (don't create or read ~/.codemarks files)
+    #[arg(long, global = true)]
+    no_storage: bool,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -207,11 +231,13 @@ fn initialize_codemarks() -> Result<()> {
 }
 
 fn main() {
-    if let Err(e) = initialize_codemarks() {
-        eprintln!("Warning: Failed to initialize codemarks: {e}");
-    }
-
     let cli = Cli::parse();
+
+    if !cli.no_storage {
+        if let Err(e) = initialize_codemarks() {
+            eprintln!("Warning: Failed to initialize codemarks: {e}");
+        }
+    }
 
     match cli.command {
         Commands::Version => {
@@ -219,28 +245,39 @@ fn main() {
         }
         Commands::Scan { directory, ignore } => {
             let dir = directory.as_deref().unwrap_or(Path::new("."));
-            match scan::scan_directory(dir, &ignore) {
+            match scan::scan_directory(dir, &ignore, cli.no_storage) {
                 Ok(count) => {
-                    println!(
-                        "Found {count} code annotations and saved to global projects database"
-                    );
+                    if cli.no_storage {
+                        println!("Found {count} code annotations");
+                    } else {
+                        println!("Found {count} and saved ode annotations");
+                    }
                 }
                 Err(e) => eprintln!("Error scanning directory: {e}"),
             }
         }
         Commands::List => {
-            list::list_codemarks();
+            list::list_codemarks(cli.no_storage);
         }
-        Commands::Config { action } => match config::handle_config(action) {
-            Ok(()) => {}
-            Err(e) => eprintln!("Error managing config: {e}"),
-        },
+        Commands::Config { action } => {
+            if cli.no_storage {
+                eprintln!(
+                    "Config management is not available when storage is disabled (--no-storage)"
+                );
+                std::process::exit(1);
+            }
+            match config::handle_config(action) {
+                Ok(()) => {}
+                Err(e) => eprintln!("Error managing config: {e}"),
+            }
+        }
         Commands::Ci {
             directory,
             pattern,
             ignore,
         } => {
             let dir = directory.as_deref().unwrap_or(Path::new("."));
+            // CI mode defaults to no-storage behavior (override the global flag)
             ci::run_ci(dir, pattern, &ignore);
         }
         Commands::Watch {
@@ -249,15 +286,21 @@ fn main() {
             debounce,
         } => {
             let dir = directory.as_deref().unwrap_or(Path::new("."));
-            match watch::watch_directory(dir, &ignore, debounce) {
+            match watch::watch_directory(dir, &ignore, debounce, cli.no_storage) {
                 Ok(()) => {}
                 Err(e) => eprintln!("Error watching directory: {e}"),
             }
         }
-        Commands::Clean { dry_run, project } => match clean::clean_resolved(dry_run, project) {
-            Ok(()) => {}
-            Err(e) => eprintln!("Error cleaning resolved annotations: {e}"),
-        },
+        Commands::Clean { dry_run, project } => {
+            if cli.no_storage {
+                eprintln!("Clean command is not available when storage is disabled (--no-storage)");
+                std::process::exit(1);
+            }
+            match clean::clean_resolved(dry_run, project) {
+                Ok(()) => {}
+                Err(e) => eprintln!("Error cleaning resolved annotations: {e}"),
+            }
+        }
     }
 }
 

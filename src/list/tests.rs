@@ -16,7 +16,7 @@ fn test_list_codemarks_empty() {
     let _temp_home = setup_temp_home();
 
     // Test listing when database is empty - should not crash
-    list_codemarks();
+    list_codemarks(false);
 }
 
 #[test]
@@ -24,7 +24,7 @@ fn test_list_codemarks_with_data() {
     let _temp_home = setup_temp_home();
 
     // Test that the list function doesn't crash even if we can't save data
-    list_codemarks();
+    list_codemarks(false);
 }
 
 #[test]

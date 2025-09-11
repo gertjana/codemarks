@@ -24,14 +24,14 @@ fn test_scan_directory_basic() {
     .expect("Failed to write test file");
 
     // Test scan_directory function
-    let result = scan_directory(temp_dir.path(), &[]);
+    let result = scan_directory(temp_dir.path(), &[], false);
     assert!(result.is_ok());
     let _found_count = result.unwrap();
     // The scan might find 0 if the temp directory structure isn't as expected
     // Let's just verify it doesn't crash and returns a valid count
 
     // Test with ignore patterns
-    let result = scan_directory(temp_dir.path(), &["*.rs".to_string()]);
+    let result = scan_directory(temp_dir.path(), &["*.rs".to_string()], false);
     assert!(result.is_ok());
 }
 
@@ -43,7 +43,7 @@ fn test_scan_directory_empty() {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
 
     // Test scanning empty directory
-    let result = scan_directory(temp_dir.path(), &[]);
+    let result = scan_directory(temp_dir.path(), &[], false);
     assert!(result.is_ok());
     let count = result.unwrap();
     assert_eq!(count, 0); // Should find no annotations in empty directory
@@ -61,6 +61,6 @@ fn test_scan_directory_with_ignores() {
     std::fs::write(&ignored_file, "// TODO: Should be ignored").expect("Failed to write file");
 
     // Test with ignore patterns
-    let result = scan_directory(temp_dir.path(), &["*.txt".to_string()]);
+    let result = scan_directory(temp_dir.path(), &["*.txt".to_string()], false);
     assert!(result.is_ok());
 }

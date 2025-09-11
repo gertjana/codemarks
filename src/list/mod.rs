@@ -3,7 +3,11 @@
 
 use crate::load_global_projects;
 
-pub fn list_codemarks() {
+pub fn list_codemarks(no_storage: bool) {
+    if no_storage {
+        println!("No code annotations available.");
+        return;
+    }
     let projects_db = load_global_projects();
     if projects_db.projects.is_empty() {
         println!("No code annotations found. Run 'codemarks scan' first to scan for annotations.");

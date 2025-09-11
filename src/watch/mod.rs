@@ -1,4 +1,7 @@
-use crate::{Codemark, load_global_config, load_global_projects, save_global_projects};
+use crate::{
+    Codemark, load_global_config, load_global_config_no_storage, load_global_projects,
+    save_global_projects,
+};
 use anyhow::Result;
 use ignore::WalkBuilder;
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
@@ -88,6 +91,7 @@ fn process_changed_file(
     ignore_patterns: &[String],
     annotation_pattern: &Regex,
     project_name: &str,
+    no_storage: bool,
 ) -> Result<usize> {
     // Check if file should be ignored
     if should_ignore_file(file_path, ignore_patterns) {
@@ -110,38 +114,47 @@ fn process_changed_file(
                 Ok(codemarks) => {
                     if codemarks.is_empty() {
                         // No annotations found, but still need to clean up old ones
-                        let mut projects_db = load_global_projects();
-                        if let Some(project_codemarks) = projects_db.projects.get_mut(project_name)
-                        {
-                            let old_count = project_codemarks.len();
-                            project_codemarks.retain(|cm| cm.file != file_path.to_string_lossy());
-                            let new_count = project_codemarks.len();
-                            if old_count != new_count {
-                                save_global_projects(&projects_db)?;
-                                println!("  Removed {} old annotations", old_count - new_count);
+                        if !no_storage {
+                            let mut projects_db = load_global_projects();
+                            if let Some(project_codemarks) =
+                                projects_db.projects.get_mut(project_name)
+                            {
+                                let old_count = project_codemarks.len();
+                                project_codemarks
+                                    .retain(|cm| cm.file != file_path.to_string_lossy());
+                                let new_count = project_codemarks.len();
+                                if old_count != new_count {
+                                    save_global_projects(&projects_db)?;
+                                    println!("  Removed {} old annotations", old_count - new_count);
+                                }
                             }
                         }
                         Ok(0)
                     } else {
-                        let mut projects_db = load_global_projects();
+                        if !no_storage {
+                            let mut projects_db = load_global_projects();
 
-                        // Remove old codemarks for this file
-                        if let Some(project_codemarks) = projects_db.projects.get_mut(project_name)
-                        {
-                            project_codemarks.retain(|cm| cm.file != file_path.to_string_lossy());
-                        } else {
-                            projects_db
-                                .projects
-                                .insert(project_name.to_string(), Vec::new());
+                            // Remove old codemarks for this file
+                            if let Some(project_codemarks) =
+                                projects_db.projects.get_mut(project_name)
+                            {
+                                project_codemarks
+                                    .retain(|cm| cm.file != file_path.to_string_lossy());
+                            } else {
+                                projects_db
+                                    .projects
+                                    .insert(project_name.to_string(), Vec::new());
+                            }
+
+                            // Add new codemarks
+                            if let Some(project_codemarks) =
+                                projects_db.projects.get_mut(project_name)
+                            {
+                                project_codemarks.extend(codemarks.clone());
+                            }
+
+                            save_global_projects(&projects_db)?;
                         }
-
-                        // Add new codemarks
-                        if let Some(project_codemarks) = projects_db.projects.get_mut(project_name)
-                        {
-                            project_codemarks.extend(codemarks.clone());
-                        }
-
-                        save_global_projects(&projects_db)?;
 
                         println!("  Found {} annotations:", codemarks.len());
                         for codemark in &codemarks {
@@ -172,8 +185,13 @@ pub fn watch_directory(
     directory: &Path,
     ignore_patterns: &[String],
     debounce_ms: Option<u64>,
+    no_storage: bool,
 ) -> Result<()> {
-    let config = load_global_config();
+    let config = if no_storage {
+        load_global_config_no_storage()
+    } else {
+        load_global_config()
+    };
     let annotation_pattern = Regex::new(&config.annotation_pattern)
         .map_err(|e| anyhow::anyhow!("Invalid regex pattern: {e}"))?;
 
@@ -250,6 +268,7 @@ pub fn watch_directory(
                                         ignore_patterns,
                                         &annotation_pattern,
                                         &project_name,
+                                        no_storage,
                                     ) {
                                         Ok(count) => {
                                             if count > 0 {
