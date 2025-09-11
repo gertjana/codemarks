@@ -1,4 +1,5 @@
 use crate::{Codemark, load_global_config, load_global_projects, save_global_projects};
+use anyhow::Result;
 use ignore::WalkBuilder;
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use regex::Regex;
@@ -9,10 +10,7 @@ use std::sync::mpsc::channel;
 use std::time::{Duration, Instant};
 
 /// Scans a single file for code annotations and returns found codemarks
-fn scan_file(
-    file_path: &Path,
-    annotation_pattern: &Regex,
-) -> std::result::Result<Vec<Codemark>, Box<dyn std::error::Error>> {
+fn scan_file(file_path: &Path, annotation_pattern: &Regex) -> Result<Vec<Codemark>> {
     let content = fs::read_to_string(file_path)?;
     let mut codemarks = Vec::new();
 
@@ -90,7 +88,7 @@ fn process_changed_file(
     ignore_patterns: &[String],
     annotation_pattern: &Regex,
     project_name: &str,
-) -> std::result::Result<usize, Box<dyn std::error::Error>> {
+) -> Result<usize> {
     // Check if file should be ignored
     if should_ignore_file(file_path, ignore_patterns) {
         return Ok(0);
@@ -110,7 +108,21 @@ fn process_changed_file(
 
             match scan_file(file_path, annotation_pattern) {
                 Ok(codemarks) => {
-                    if !codemarks.is_empty() {
+                    if codemarks.is_empty() {
+                        // No annotations found, but still need to clean up old ones
+                        let mut projects_db = load_global_projects();
+                        if let Some(project_codemarks) = projects_db.projects.get_mut(project_name)
+                        {
+                            let old_count = project_codemarks.len();
+                            project_codemarks.retain(|cm| cm.file != file_path.to_string_lossy());
+                            let new_count = project_codemarks.len();
+                            if old_count != new_count {
+                                save_global_projects(&projects_db)?;
+                                println!("  Removed {} old annotations", old_count - new_count);
+                            }
+                        }
+                        Ok(0)
+                    } else {
                         let mut projects_db = load_global_projects();
 
                         // Remove old codemarks for this file
@@ -140,20 +152,6 @@ fn process_changed_file(
                         }
 
                         Ok(codemarks.len())
-                    } else {
-                        // No annotations found, but still need to clean up old ones
-                        let mut projects_db = load_global_projects();
-                        if let Some(project_codemarks) = projects_db.projects.get_mut(project_name)
-                        {
-                            let old_count = project_codemarks.len();
-                            project_codemarks.retain(|cm| cm.file != file_path.to_string_lossy());
-                            let new_count = project_codemarks.len();
-                            if old_count != new_count {
-                                save_global_projects(&projects_db)?;
-                                println!("  Removed {} old annotations", old_count - new_count);
-                            }
-                        }
-                        Ok(0)
                     }
                 }
                 Err(e) => {
@@ -174,10 +172,10 @@ pub fn watch_directory(
     directory: &Path,
     ignore_patterns: &[String],
     debounce_ms: Option<u64>,
-) -> std::result::Result<(), Box<dyn std::error::Error>> {
+) -> Result<()> {
     let config = load_global_config();
     let annotation_pattern = Regex::new(&config.annotation_pattern)
-        .map_err(|e| format!("Invalid regex pattern: {e}"))?;
+        .map_err(|e| anyhow::anyhow!("Invalid regex pattern: {e}"))?;
 
     // Use the directory name as project name
     let project_name = directory
@@ -290,4 +288,110 @@ pub fn watch_directory(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+    use tempfile::tempdir;
+
+    fn setup_test_env() {
+        // Clear any existing config
+        unsafe {
+            env::set_var("CODEMARKS_ANNOTATION_PATTERNS", "");
+            env::set_var("CODEMARKS_IGNORE_PATTERNS", "");
+        }
+    }
+
+    #[test]
+    fn test_scan_file_with_annotations() {
+        setup_test_env();
+        let temp_dir = tempdir().unwrap();
+        let test_file = temp_dir.path().join("test.rs");
+        fs::write(
+            &test_file,
+            "// TODO: Fix this\nfn main() {}\n// FIXME: Another issue",
+        )
+        .unwrap();
+
+        let pattern = Regex::new(r"(?i)(?://|#|<!--)\s*(?:TODO|FIXME|HACK|NOTE|BUG|OPTIMIZE|REVIEW)(?:\([^)]*\))?\s*:?\s*(.*)").unwrap();
+        let result = scan_file(&test_file, &pattern).unwrap();
+
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].description, "Fix this");
+        assert_eq!(result[1].description, "Another issue");
+    }
+
+    #[test]
+    fn test_scan_file_without_annotations() {
+        setup_test_env();
+        let temp_dir = tempdir().unwrap();
+        let test_file = temp_dir.path().join("test.rs");
+        fs::write(
+            &test_file,
+            "fn main() {\n    println!(\"Hello world!\");\n}",
+        )
+        .unwrap();
+
+        let pattern = Regex::new(r"(?i)(?://|#|<!--)\s*(?:TODO|FIXME|HACK|NOTE|BUG|OPTIMIZE|REVIEW)(?:\([^)]*\))?\s*:?\s*(.*)").unwrap();
+        let result = scan_file(&test_file, &pattern).unwrap();
+
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_should_ignore_file_with_patterns() {
+        setup_test_env();
+        let file_path = Path::new("/path/to/test.rs");
+        let ignore_patterns = vec!["test.rs".to_string()];
+
+        assert!(should_ignore_file(file_path, &ignore_patterns));
+    }
+
+    #[test]
+    fn test_should_ignore_file_binary_extensions() {
+        setup_test_env();
+        let file_path = Path::new("/path/to/image.jpg");
+        let ignore_patterns = vec![];
+
+        assert!(should_ignore_file(file_path, &ignore_patterns));
+    }
+
+    #[test]
+    fn test_should_not_ignore_source_file() {
+        setup_test_env();
+        let file_path = Path::new("/path/to/source.rs");
+        let ignore_patterns = vec![];
+
+        assert!(!should_ignore_file(file_path, &ignore_patterns));
+    }
+
+    #[test]
+    fn test_process_changed_file_ignored() {
+        setup_test_env();
+        let temp_dir = tempdir().unwrap();
+        let test_file = temp_dir.path().join("ignored.txt");
+        fs::write(&test_file, "// TODO: This should be ignored").unwrap();
+
+        let ignore_patterns = vec!["ignored.txt".to_string()];
+        let pattern = Regex::new(r"(?i)(?://|#|<!--)\s*(?:TODO|FIXME|HACK|NOTE|BUG|OPTIMIZE|REVIEW)(?:\([^)]*\))?\s*:?\s*(.*)").unwrap();
+
+        let result =
+            process_changed_file(&test_file, &ignore_patterns, &pattern, "test_project").unwrap();
+        assert_eq!(result, 0);
+    }
+
+    #[test]
+    fn test_process_changed_file_nonexistent() {
+        setup_test_env();
+        let nonexistent_file = Path::new("/nonexistent/file.rs");
+        let ignore_patterns = vec![];
+        let pattern = Regex::new(r"(?i)(?://|#|<!--)\s*(?:TODO|FIXME|HACK|NOTE|BUG|OPTIMIZE|REVIEW)(?:\([^)]*\))?\s*:?\s*(.*)").unwrap();
+
+        let result =
+            process_changed_file(nonexistent_file, &ignore_patterns, &pattern, "test_project")
+                .unwrap();
+        assert_eq!(result, 0);
+    }
 }

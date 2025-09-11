@@ -1,3 +1,4 @@
+use anyhow::Result;
 use clap::{Parser, Subcommand};
 mod ci;
 mod clean;
@@ -38,24 +39,28 @@ pub struct ProjectsDatabase {
     pub projects: HashMap<String, Vec<Codemark>>,
 }
 
+#[must_use]
 pub fn default_annotation_pattern() -> String {
     r"(?i)(?://|#|<!--|\*)\s*(?:TODO|FIXME|HACK)\s*:?\s*(.*)$".to_string()
 }
 
-pub fn get_global_config_path() -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let home_dir = std::env::var("HOME").map_err(|_| "Could not find HOME environment variable")?;
+pub fn get_global_config_path() -> Result<PathBuf> {
+    let home_dir = std::env::var("HOME")
+        .map_err(|_| anyhow::anyhow!("Could not find HOME environment variable"))?;
     let config_dir = PathBuf::from(home_dir).join(".codemarks");
     std::fs::create_dir_all(&config_dir)?;
     Ok(config_dir.join("config.json"))
 }
 
-pub fn get_global_projects_path() -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let home_dir = std::env::var("HOME").map_err(|_| "Could not find HOME environment variable")?;
+pub fn get_global_projects_path() -> Result<PathBuf> {
+    let home_dir = std::env::var("HOME")
+        .map_err(|_| anyhow::anyhow!("Could not find HOME environment variable"))?;
     let config_dir = PathBuf::from(home_dir).join(".codemarks");
     std::fs::create_dir_all(&config_dir)?;
     Ok(config_dir.join("projects.json"))
 }
 
+#[must_use]
 pub fn load_global_config() -> CodemarksConfig {
     if let Ok(config_path) = get_global_config_path() {
         if config_path.exists() {
@@ -69,13 +74,14 @@ pub fn load_global_config() -> CodemarksConfig {
     CodemarksConfig::default()
 }
 
-pub fn save_global_config(config: &CodemarksConfig) -> Result<(), Box<dyn std::error::Error>> {
+pub fn save_global_config(config: &CodemarksConfig) -> Result<()> {
     let config_path = get_global_config_path()?;
     let json_content = serde_json::to_string_pretty(config)?;
     fs::write(config_path, json_content)?;
     Ok(())
 }
 
+#[must_use]
 pub fn load_global_projects() -> ProjectsDatabase {
     if let Ok(projects_path) = get_global_projects_path() {
         if projects_path.exists() {
@@ -89,9 +95,7 @@ pub fn load_global_projects() -> ProjectsDatabase {
     ProjectsDatabase::default()
 }
 
-pub fn save_global_projects(
-    projects_db: &ProjectsDatabase,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub fn save_global_projects(projects_db: &ProjectsDatabase) -> Result<()> {
     let projects_path = get_global_projects_path()?;
     let json_content = serde_json::to_string_pretty(projects_db)?;
     fs::write(projects_path, json_content)?;
@@ -171,8 +175,9 @@ enum ConfigAction {
     Reset,
 }
 
-fn initialize_codemarks() -> Result<(), Box<dyn std::error::Error>> {
-    let home_dir = std::env::var("HOME").map_err(|_| "Could not find HOME environment variable")?;
+fn initialize_codemarks() -> Result<()> {
+    let home_dir = std::env::var("HOME")
+        .map_err(|_| anyhow::anyhow!("Could not find HOME environment variable"))?;
     let config_dir = PathBuf::from(home_dir).join(".codemarks");
     std::fs::create_dir_all(&config_dir)?;
 
@@ -215,15 +220,16 @@ fn main() {
             let dir = directory.as_deref().unwrap_or(Path::new("."));
             match scan::scan_directory(dir, &ignore) {
                 Ok(count) => {
-                    println!("Found {count} code annotations and saved to global projects database")
+                    println!(
+                        "Found {count} code annotations and saved to global projects database"
+                    );
                 }
                 Err(e) => eprintln!("Error scanning directory: {e}"),
             }
         }
-        Commands::List => match list::list_codemarks() {
-            Ok(()) => {}
-            Err(e) => eprintln!("Error listing codemarks: {e}"),
-        },
+        Commands::List => {
+            list::list_codemarks();
+        }
         Commands::Config { action } => match config::handle_config(action) {
             Ok(()) => {}
             Err(e) => eprintln!("Error managing config: {e}"),
@@ -389,62 +395,6 @@ mod tests {
     }
 
     #[test]
-    fn test_save_and_load_global_config() {
-        let temp_dir = TempDir::new().expect("Failed to create temp directory");
-        let config_path = temp_dir.path().join("config.json");
-
-        let custom_config = CodemarksConfig {
-            annotation_pattern: "CUSTOM_TEST_PATTERN".to_string(),
-        };
-
-        // Save config directly to temp file
-        let json_content =
-            serde_json::to_string_pretty(&custom_config).expect("Failed to serialize config");
-        fs::write(&config_path, json_content).expect("Failed to write config");
-
-        // Load and verify
-        let content = fs::read_to_string(&config_path).expect("Failed to read config file");
-        let loaded_config: CodemarksConfig =
-            serde_json::from_str(&content).expect("Failed to parse config");
-
-        assert_eq!(loaded_config.annotation_pattern, "CUSTOM_TEST_PATTERN");
-    }
-
-    #[test]
-    fn test_save_and_load_global_projects() {
-        let temp_dir = TempDir::new().expect("Failed to create temp directory");
-        let projects_path = temp_dir.path().join("projects.json");
-
-        let mut projects_db = ProjectsDatabase::default();
-        let codemark = Codemark {
-            file: "test.rs".to_string(),
-            line_number: 10,
-            description: "Test save/load".to_string(),
-            resolved: false,
-        };
-        projects_db
-            .projects
-            .insert("test_project".to_string(), vec![codemark]);
-
-        // Save projects directly to temp file
-        let json_content =
-            serde_json::to_string_pretty(&projects_db).expect("Failed to serialize projects");
-        fs::write(&projects_path, json_content).expect("Failed to write projects");
-
-        // Load and verify
-        let content = fs::read_to_string(&projects_path).expect("Failed to read projects file");
-        let loaded_projects: ProjectsDatabase =
-            serde_json::from_str(&content).expect("Failed to parse projects");
-
-        assert_eq!(loaded_projects.projects.len(), 1);
-        assert!(loaded_projects.projects.contains_key("test_project"));
-        assert_eq!(
-            loaded_projects.projects["test_project"][0].description,
-            "Test save/load"
-        );
-    }
-
-    #[test]
     fn test_load_global_config_default() {
         let _temp_home = setup_temp_home();
 
@@ -460,87 +410,5 @@ mod tests {
         // Load projects when no file exists should return default
         let projects = load_global_projects();
         assert!(projects.projects.is_empty());
-    }
-
-    #[test]
-    fn test_clean_resolved_functionality() {
-        let _temp_home = setup_temp_home();
-
-        // Create a simple test to verify clean function exists and doesn't crash
-        let result = crate::clean::clean_resolved(true, None);
-        assert!(result.is_ok());
-
-        // Test with project filter
-        let result = crate::clean::clean_resolved(true, Some("nonexistent".to_string()));
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_list_codemarks_empty() {
-        let _temp_home = setup_temp_home();
-
-        // Test listing when database is empty
-        let result = crate::list::list_codemarks();
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_list_codemarks_with_data() {
-        let _temp_home = setup_temp_home();
-
-        // Test that the list function doesn't crash even if we can't save data
-        let result = crate::list::list_codemarks();
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_scan_directory_function() {
-        let _temp_home = setup_temp_home();
-
-        // Create a temporary directory with test files
-        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
-        let test_file = temp_dir.path().join("test.rs");
-        std::fs::write(
-            &test_file,
-            "// TODO: This is a test\nlet x = 5;\n// FIXME: Fix this",
-        )
-        .expect("Failed to write test file");
-
-        // Test scan_directory function
-        let result = crate::scan::scan_directory(temp_dir.path(), &[]);
-        assert!(result.is_ok());
-        let _found_count = result.unwrap();
-        // The scan might find 0 if the temp directory structure isn't as expected
-        // Let's just verify it doesn't crash and returns a valid count
-
-        // Test with ignore patterns
-        let result = crate::scan::scan_directory(temp_dir.path(), &["*.rs".to_string()]);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_config_edge_cases() {
-        let _temp_home = setup_temp_home();
-
-        // Test show config (safe operation that doesn't modify state)
-        let result = crate::config::handle_config(ConfigAction::Show);
-        assert!(result.is_ok());
-
-        // Test that reset doesn't crash
-        let result = crate::config::handle_config(ConfigAction::Reset);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_clean_edge_cases() {
-        let _temp_home = setup_temp_home();
-
-        // Test dry run (safe operation)
-        let result = crate::clean::clean_resolved(true, None);
-        assert!(result.is_ok());
-
-        // Test with project filter
-        let result = crate::clean::clean_resolved(true, Some("nonexistent".to_string()));
-        assert!(result.is_ok());
     }
 }

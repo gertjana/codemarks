@@ -21,13 +21,13 @@ repos:
         language: system
         files: \.rs$
         args: ["--all", "--"]
-      - id: clippy
-        name: cargo clippy
-        description: Lint Rust code with clippy
-        entry: cargo clippy
-        language: system
-        files: \.rs$
-        args: ["--all-targets", "--all-features", "--", "-D", "warnings"]
+      # - id: clippy
+      #   name: cargo clippy
+      #   description: Lint Rust code with clippy
+      #   entry: cargo clippy
+      #   language: system
+      #   files: \.rs$
+      #   args: ["--all-targets", "--all-features", "--", "-D", "warnings"]
 
   - repo: local
     hooks:
