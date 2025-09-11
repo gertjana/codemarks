@@ -1,15 +1,16 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::fs;
+use std::path::{Path, PathBuf};
+
 mod ci;
 mod clean;
 mod config;
 mod list;
 mod scan;
 mod watch;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::fs;
-use std::path::{Path, PathBuf};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Codemark {

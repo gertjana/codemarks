@@ -1,5 +1,8 @@
 # Codemarks
 
+[![CI/CD](https://github.com/gertjana/codemarks/workflows/CI%2FCD/badge.svg)](https://github.com/gertjana/codemarks/actions)
+[![codecov](https://codecov.io/gh/gertjana/codemarks/branch/main/graph/badge.svg)](https://codecov.io/gh/gertjana/codemarks)
+
 Codemarks is a CLI tool for scanning and managing code annotations such as `TODO`, `FIXME`, and `HACK` in your codebase. It helps you keep track of outstanding tasks and issues directly from your source code comments, storing them in a global database for easy review.
 
 ## Installation
