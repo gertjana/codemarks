@@ -1,7 +1,4 @@
-use crate::{
-    Codemark, load_global_config, load_global_config_no_storage, load_global_projects,
-    save_global_projects,
-};
+use crate::{Codemark, load_global_config, load_global_projects, save_global_projects};
 use anyhow::Result;
 use ignore::WalkBuilder;
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
@@ -91,7 +88,7 @@ fn process_changed_file(
     ignore_patterns: &[String],
     annotation_pattern: &Regex,
     project_name: &str,
-    no_storage: bool,
+    ephemeral: bool,
 ) -> Result<usize> {
     // Check if file should be ignored
     if should_ignore_file(file_path, ignore_patterns) {
@@ -114,8 +111,8 @@ fn process_changed_file(
                 Ok(codemarks) => {
                     if codemarks.is_empty() {
                         // No annotations found, but still need to clean up old ones
-                        if !no_storage {
-                            let mut projects_db = load_global_projects();
+                        if !ephemeral {
+                            let mut projects_db = load_global_projects(false);
                             if let Some(project_codemarks) =
                                 projects_db.projects.get_mut(project_name)
                             {
@@ -124,15 +121,15 @@ fn process_changed_file(
                                     .retain(|cm| cm.file != file_path.to_string_lossy());
                                 let new_count = project_codemarks.len();
                                 if old_count != new_count {
-                                    save_global_projects(&projects_db)?;
+                                    save_global_projects(&projects_db, false)?;
                                     println!("  Removed {} old annotations", old_count - new_count);
                                 }
                             }
                         }
                         Ok(0)
                     } else {
-                        if !no_storage {
-                            let mut projects_db = load_global_projects();
+                        if !ephemeral {
+                            let mut projects_db = load_global_projects(false);
 
                             // Remove old codemarks for this file
                             if let Some(project_codemarks) =
@@ -153,7 +150,7 @@ fn process_changed_file(
                                 project_codemarks.extend(codemarks.clone());
                             }
 
-                            save_global_projects(&projects_db)?;
+                            save_global_projects(&projects_db, false)?;
                         }
 
                         println!("  Found {} annotations:", codemarks.len());
@@ -185,13 +182,9 @@ pub fn watch_directory(
     directory: &Path,
     ignore_patterns: &[String],
     debounce_ms: Option<u64>,
-    no_storage: bool,
+    ephemeral: bool,
 ) -> Result<()> {
-    let config = if no_storage {
-        load_global_config_no_storage()
-    } else {
-        load_global_config()
-    };
+    let config = load_global_config(ephemeral);
     let annotation_pattern = Regex::new(&config.annotation_pattern)
         .map_err(|e| anyhow::anyhow!("Invalid regex pattern: {e}"))?;
 
@@ -268,7 +261,7 @@ pub fn watch_directory(
                                         ignore_patterns,
                                         &annotation_pattern,
                                         &project_name,
-                                        no_storage,
+                                        ephemeral,
                                     ) {
                                         Ok(count) => {
                                             if count > 0 {

@@ -3,7 +3,7 @@ use anyhow::Result;
 use std::collections::HashMap;
 
 pub fn clean_resolved(dry_run: bool, project_filter: Option<String>) -> Result<()> {
-    let projects_db = load_global_projects();
+    let projects_db = load_global_projects(false);
     let mut total_removed = 0;
     let mut projects_affected = 0;
 
@@ -82,7 +82,7 @@ pub fn clean_resolved(dry_run: bool, project_filter: Option<String>) -> Result<(
         println!("No resolved annotations found to clean");
     } else {
         // Save the cleaned database
-        save_global_projects(&cleaned_db)?;
+        save_global_projects(&cleaned_db, false)?;
         println!(
             "Successfully removed {total_removed} resolved annotations from {projects_affected} projects"
         );

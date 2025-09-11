@@ -14,6 +14,21 @@ cargo build --release
 
 ## Usage
 
+### Global Options
+
+#### Ephemeral Mode
+Run any command in ephemeral mode to disable storage (won't create or read ~/.codemarks files):
+
+```sh
+./codemarks --ephemeral scan
+./codemarks --ephemeral list
+```
+
+This is useful for:
+- CI/CD environments where you don't want persistent files
+- One-time scans without affecting your global database
+- Testing or experimentation
+
 ### Show Version
 Print the current version of Codemarks.
 
@@ -62,7 +77,7 @@ The clean command will:
 Use the `--dry-run` option to preview what would be cleaned before making changes.
 
 ### CI/CD Mode
-Run in CI mode to scan for codemarks and return a non-zero exit code if any are found. Perfect for continuous integration pipelines.
+Run in CI mode to scan for codemarks and return a non-zero exit code if any are found. Perfect for continuous integration pipelines. **CI mode automatically runs in ephemeral mode** (no storage files created).
 
 ```sh
 ./codemarks ci
@@ -78,6 +93,7 @@ The CI command will:
 - Print found annotations with file paths and line numbers
 - Return exit code 0 if no annotations are found
 - Return exit code 1 if annotations are found (causing CI pipelines to fail)
+- Run in ephemeral mode by default (no ~/.codemarks files created or read)
 
 ### Watch for Changes
 Watch a directory for file changes and automatically scan any modified files for annotations. This is perfect for development environments where you want real-time feedback on code annotations.
@@ -136,8 +152,14 @@ You can customize the regex pattern to match your team's conventions.
 # Scan current directory
 ./codemarks scan
 
+# Scan in ephemeral mode (no storage files)
+./codemarks --ephemeral scan
+
 # List all found annotations
 ./codemarks list
+
+# List in ephemeral mode (will show "no annotations" since no storage)
+./codemarks --ephemeral list
 
 # Clean resolved annotations
 ./codemarks clean
@@ -145,7 +167,7 @@ You can customize the regex pattern to match your team's conventions.
 # Preview what would be cleaned
 ./codemarks clean --dry-run
 
-# Check for annotations in CI
+# Check for annotations in CI (automatically ephemeral)
 ./codemarks ci
 
 # Watch for changes in real-time
@@ -169,11 +191,26 @@ You can customize the regex pattern to match your team's conventions.
 # Watch current directory for changes
 ./codemarks watch
 
+# Watch in ephemeral mode (no storage updates)
+./codemarks --ephemeral watch
+
 # Watch specific directory with ignore patterns
 ./codemarks watch --directory src/ --ignore "*.test.js" --ignore "*.spec.ts"
 
 # Watch with custom debounce time (useful for large projects)
 ./codemarks watch --debounce 1000 --ignore "node_modules/" --ignore "target/"
+```
+
+### Ephemeral Mode Examples
+```sh
+# Scan without affecting global database
+./codemarks --ephemeral scan --directory src/
+
+# Quick one-time check with custom pattern
+./codemarks --ephemeral ci --pattern "URGENT|CRITICAL"
+
+# Watch for development without storage
+./codemarks --ephemeral watch --directory src/
 ```
 
 ## Development

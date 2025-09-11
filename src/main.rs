@@ -45,24 +45,28 @@ pub fn default_annotation_pattern() -> String {
     r"(?i)(?://|#|<!--|\*)\s*(?:TODO|FIXME|HACK)\s*:?\s*(.*)$".to_string()
 }
 
-pub fn get_global_config_path() -> Result<PathBuf> {
+fn get_global_file_path(filename: &str) -> Result<PathBuf> {
     let home_dir = std::env::var("HOME")
         .map_err(|_| anyhow::anyhow!("Could not find HOME environment variable"))?;
     let config_dir = PathBuf::from(home_dir).join(".codemarks");
     std::fs::create_dir_all(&config_dir)?;
-    Ok(config_dir.join("config.json"))
+    Ok(config_dir.join(filename))
+}
+
+pub fn get_global_config_path() -> Result<PathBuf> {
+    get_global_file_path("config.json")
 }
 
 pub fn get_global_projects_path() -> Result<PathBuf> {
-    let home_dir = std::env::var("HOME")
-        .map_err(|_| anyhow::anyhow!("Could not find HOME environment variable"))?;
-    let config_dir = PathBuf::from(home_dir).join(".codemarks");
-    std::fs::create_dir_all(&config_dir)?;
-    Ok(config_dir.join("projects.json"))
+    get_global_file_path("projects.json")
 }
 
 #[must_use]
-pub fn load_global_config() -> CodemarksConfig {
+pub fn load_global_config(ephemeral: bool) -> CodemarksConfig {
+    if ephemeral {
+        return CodemarksConfig::default();
+    }
+
     if let Ok(config_path) = get_global_config_path() {
         if config_path.exists() {
             if let Ok(content) = fs::read_to_string(&config_path) {
@@ -75,25 +79,23 @@ pub fn load_global_config() -> CodemarksConfig {
     CodemarksConfig::default()
 }
 
-#[must_use]
-pub fn load_global_config_no_storage() -> CodemarksConfig {
-    CodemarksConfig::default()
-}
+pub fn save_global_config(config: &CodemarksConfig, ephemeral: bool) -> Result<()> {
+    if ephemeral {
+        return Ok(());
+    }
 
-pub fn save_global_config(config: &CodemarksConfig) -> Result<()> {
     let config_path = get_global_config_path()?;
     let json_content = serde_json::to_string_pretty(config)?;
     fs::write(config_path, json_content)?;
     Ok(())
 }
 
-pub fn save_global_config_no_storage(_config: &CodemarksConfig) -> Result<()> {
-    // No-op when storage is disabled
-    Ok(())
-}
-
 #[must_use]
-pub fn load_global_projects() -> ProjectsDatabase {
+pub fn load_global_projects(ephemeral: bool) -> ProjectsDatabase {
+    if ephemeral {
+        return ProjectsDatabase::default();
+    }
+
     if let Ok(projects_path) = get_global_projects_path() {
         if projects_path.exists() {
             if let Ok(content) = fs::read_to_string(&projects_path) {
@@ -106,20 +108,14 @@ pub fn load_global_projects() -> ProjectsDatabase {
     ProjectsDatabase::default()
 }
 
-#[must_use]
-pub fn load_global_projects_no_storage() -> ProjectsDatabase {
-    ProjectsDatabase::default()
-}
+pub fn save_global_projects(projects_db: &ProjectsDatabase, ephemeral: bool) -> Result<()> {
+    if ephemeral {
+        return Ok(());
+    }
 
-pub fn save_global_projects(projects_db: &ProjectsDatabase) -> Result<()> {
     let projects_path = get_global_projects_path()?;
     let json_content = serde_json::to_string_pretty(projects_db)?;
     fs::write(projects_path, json_content)?;
-    Ok(())
-}
-
-pub fn save_global_projects_no_storage(_projects_db: &ProjectsDatabase) -> Result<()> {
-    // No-op when storage is disabled
     Ok(())
 }
 
@@ -130,9 +126,9 @@ pub fn save_global_projects_no_storage(_projects_db: &ProjectsDatabase) -> Resul
     long_about = "Codemarks helps you track code annotations across your projects. Scan directories for TODO, FIXME, and HACK comments, watch for real-time changes, and integrate with CI/CD pipelines."
 )]
 struct Cli {
-    /// Disable storage (don't create or read ~/.codemarks files)
+    /// Run in ephemeral mode (don't create or read ~/.codemarks files)
     #[arg(long, global = true)]
-    no_storage: bool,
+    ephemeral: bool,
 
     #[command(subcommand)]
     command: Commands,
@@ -151,7 +147,7 @@ enum Commands {
         #[arg(short, long)]
         ignore: Vec<String>,
     },
-    /// List all found annotations from the global database
+    /// List all persisted annotations
     List,
     /// Manage global configuration settings
     Config {
@@ -182,7 +178,7 @@ enum Commands {
         #[arg(long, default_value = "500")]
         debounce: Option<u64>,
     },
-    /// Remove resolved annotations from the global database
+    /// Remove resolved persisted annotations
     Clean {
         /// Show what would be removed without actually removing it
         #[arg(short = 'n', long)]
@@ -233,7 +229,7 @@ fn initialize_codemarks() -> Result<()> {
 fn main() {
     let cli = Cli::parse();
 
-    if !cli.no_storage {
+    if !cli.ephemeral {
         if let Err(e) = initialize_codemarks() {
             eprintln!("Warning: Failed to initialize codemarks: {e}");
         }
@@ -245,10 +241,10 @@ fn main() {
         }
         Commands::Scan { directory, ignore } => {
             let dir = directory.as_deref().unwrap_or(Path::new("."));
-            match scan::scan_directory(dir, &ignore, cli.no_storage) {
+            match scan::scan_directory(dir, &ignore, cli.ephemeral) {
                 Ok(count) => {
-                    if cli.no_storage {
-                        println!("Found {count} code annotations");
+                    if cli.ephemeral {
+                        println!("Found {count} code annotations (ephemeral mode)");
                     } else {
                         println!(
                             "Found {count} code annotations and saved to global projects database"
@@ -259,13 +255,11 @@ fn main() {
             }
         }
         Commands::List => {
-            list::list_codemarks(cli.no_storage);
+            list::list_codemarks(cli.ephemeral);
         }
         Commands::Config { action } => {
-            if cli.no_storage {
-                eprintln!(
-                    "Config management is not available when storage is disabled (--no-storage)"
-                );
+            if cli.ephemeral {
+                eprintln!("Config management is not available in ephemeral mode (--ephemeral)");
                 std::process::exit(1);
             }
             match config::handle_config(action) {
@@ -288,14 +282,14 @@ fn main() {
             debounce,
         } => {
             let dir = directory.as_deref().unwrap_or(Path::new("."));
-            match watch::watch_directory(dir, &ignore, debounce, cli.no_storage) {
+            match watch::watch_directory(dir, &ignore, debounce, cli.ephemeral) {
                 Ok(()) => {}
                 Err(e) => eprintln!("Error watching directory: {e}"),
             }
         }
         Commands::Clean { dry_run, project } => {
-            if cli.no_storage {
-                eprintln!("Clean command is not available when storage is disabled (--no-storage)");
+            if cli.ephemeral {
+                eprintln!("Clean command is not available in ephemeral mode (--ephemeral)");
                 std::process::exit(1);
             }
             match clean::clean_resolved(dry_run, project) {
@@ -445,7 +439,7 @@ mod tests {
         let _temp_home = setup_temp_home();
 
         // Load config when no file exists should return default
-        let config = load_global_config();
+        let config = load_global_config(false);
         assert_eq!(config.annotation_pattern, default_annotation_pattern());
     }
 
@@ -454,7 +448,7 @@ mod tests {
         let _temp_home = setup_temp_home();
 
         // Load projects when no file exists should return default
-        let projects = load_global_projects();
+        let projects = load_global_projects(false);
         assert!(projects.projects.is_empty());
     }
 }
