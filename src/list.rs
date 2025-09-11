@@ -95,7 +95,7 @@ mod tests {
         assert_eq!(projects_db.projects.get("empty_project").unwrap().len(), 0);
 
         // Verify the resolved prefix logic
-        for (_project_name, codemarks) in &projects_db.projects {
+        for codemarks in projects_db.projects.values() {
             for codemark in codemarks {
                 let resolved_prefix = if codemark.resolved { "✅ " } else { "   " };
                 if codemark.resolved {

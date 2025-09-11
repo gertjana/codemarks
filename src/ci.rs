@@ -80,6 +80,7 @@ pub fn run_ci(directory: &Path, pattern: Option<String>, ignore_patterns: &[Stri
         }
     }
 
+    #[allow(clippy::manual_flatten)]
     for result in builder.build() {
         if let Ok(entry) = result {
             let file_path = entry.path();

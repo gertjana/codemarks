@@ -162,7 +162,7 @@ mod tests {
             .insert("test".to_string(), vec![resolved_item, unresolved_item]);
 
         // Test filtering logic manually
-        for (_project_name, codemarks) in &test_db.projects {
+        for codemarks in test_db.projects.values() {
             let unresolved: Vec<_> = codemarks.iter().filter(|c| !c.resolved).collect();
             let resolved: Vec<_> = codemarks.iter().filter(|c| c.resolved).collect();
 
