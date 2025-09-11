@@ -173,5 +173,42 @@ You can customize the regex pattern to match your team's conventions.
 ./codemarks watch --debounce 1000 --ignore "node_modules/" --ignore "target/"
 ```
 
+## Development
+
+Clone the repository and build:
+
+```sh
+git clone https://github.com/gertjana/codemarks.git
+cd codemarks
+cargo build --release
+```
+
+### Running Tests
+
+```sh
+# Run all tests
+cargo test
+
+# Run tests with output
+cargo test -- --nocapture
+```
+
+### Code Coverage
+
+Generate code coverage reports using the provided scripts:
+
+```sh
+# Using grcov (recommended)
+./scripts/coverage-grcov.sh
+
+# Using LLVM tools (if available)
+./scripts/coverage-llvm.sh
+
+# Using tarpaulin (if installed)
+./scripts/coverage.sh html
+```
+
+Coverage reports will be generated in the `target/coverage/` directory. Open `target/coverage/html/index.html` in your browser to view detailed coverage information.
+
 ## License
 MIT

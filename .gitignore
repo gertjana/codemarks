@@ -1,1 +1,9 @@
 /target
+
+# Coverage reports
+cobertura.xml
+lcov.info
+tarpaulin-report.html
+target/coverage/
+*.profraw
+*.profdata

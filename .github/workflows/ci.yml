@@ -42,6 +42,43 @@ jobs:
     - name: Run tests
       run: cargo test --all-features
 
+    - name: Install coverage tools
+      run: |
+        rustup component add llvm-tools-preview
+        cargo install grcov
+
+    - name: Generate code coverage
+      run: |
+        export CARGO_INCREMENTAL=0
+        export RUSTFLAGS="-Cinstrument-coverage"
+        export LLVM_PROFILE_FILE="target/coverage/codemarks-%p-%m.profraw"
+        mkdir -p target/coverage
+        cargo test --all-features
+        grcov target/coverage \
+          --binary-path ./target/debug/ \
+          --source-dir . \
+          --output-types lcov \
+          --branch \
+          --ignore-not-existing \
+          --ignore '*/.cargo/*' \
+          --ignore '*/target/*' \
+          --ignore '*/.rustup/*' \
+          --ignore '*/rustlib/*' \
+          --ignore '*/lib/rustlib/*' \
+          --ignore '*/toolchains/*' \
+          --excl-line GRCOV_EXCL_LINE \
+          --excl-start GRCOV_EXCL_START \
+          --excl-stop GRCOV_EXCL_STOP \
+          --output-path target/coverage/lcov.info
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        slug: gertjana/codemarks
+        file: target/coverage/lcov.info
+        fail_ci_if_error: true
+
   build-and-release:
     name: Build and Release
     runs-on: ${{ matrix.os }}
