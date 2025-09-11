@@ -9,6 +9,7 @@ mod ci;
 mod clean;
 mod config;
 mod list;
+mod project_detection;
 mod scan;
 mod watch;
 
@@ -119,6 +120,9 @@ pub fn save_global_projects(projects_db: &ProjectsDatabase, ephemeral: bool) -> 
     Ok(())
 }
 
+// Re-export project detection functionality
+pub use project_detection::detect_project_name;
+
 #[derive(Parser)]
 #[command(name = "codemarks")]
 #[command(
@@ -178,7 +182,7 @@ enum Commands {
         #[arg(long, default_value = "500")]
         debounce: Option<u64>,
     },
-    /// Remove resolved persisted annotations
+    /// Remove resolved annotations from the global database
     Clean {
         /// Show what would be removed without actually removing it
         #[arg(short = 'n', long)]

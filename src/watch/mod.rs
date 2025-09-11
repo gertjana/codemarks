@@ -1,4 +1,6 @@
-use crate::{Codemark, load_global_config, load_global_projects, save_global_projects};
+use crate::{
+    Codemark, detect_project_name, load_global_config, load_global_projects, save_global_projects,
+};
 use anyhow::Result;
 use ignore::WalkBuilder;
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
@@ -188,12 +190,8 @@ pub fn watch_directory(
     let annotation_pattern = Regex::new(&config.annotation_pattern)
         .map_err(|e| anyhow::anyhow!("Invalid regex pattern: {e}"))?;
 
-    // Use the directory name as project name
-    let project_name = directory
-        .file_name()
-        .unwrap_or(directory.as_os_str())
-        .to_string_lossy()
-        .to_string();
+    // Intelligently detect the project name from configuration files
+    let project_name = detect_project_name(directory);
 
     println!("Watching directory: {}", directory.display());
     println!("Project name: {project_name}");

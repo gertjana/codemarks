@@ -8,7 +8,9 @@ use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
-use crate::{Codemark, load_global_config, load_global_projects, save_global_projects};
+use crate::{
+    Codemark, detect_project_name, load_global_config, load_global_projects, save_global_projects,
+};
 
 pub fn scan_directory(
     directory: &Path,
@@ -19,12 +21,7 @@ pub fn scan_directory(
     let mut projects_db = load_global_projects(ephemeral);
     // Use the original pattern for matching only
     let codemark_regex = Regex::new(&config.annotation_pattern)?;
-    let project_name = directory
-        .canonicalize()?
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("unknown")
-        .to_string();
+    let project_name = detect_project_name(directory);
     let canonical_dir = directory.canonicalize()?;
     if let Some(existing_codemarks) = projects_db.projects.get_mut(&project_name) {
         for codemark in existing_codemarks.iter_mut() {
