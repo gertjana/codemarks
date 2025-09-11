@@ -250,7 +250,9 @@ fn main() {
                     if cli.no_storage {
                         println!("Found {count} code annotations");
                     } else {
-                        println!("Found {count} and saved ode annotations");
+                        println!(
+                            "Found {count} code annotations and saved to global projects database"
+                        );
                     }
                 }
                 Err(e) => eprintln!("Error scanning directory: {e}"),
