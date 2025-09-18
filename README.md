@@ -1,5 +1,6 @@
 # Codemarks
 
+![Rust](	https://img.shields.io/badge/Rust-black?style=for-the-badge&logo=rust&logoColor=#E57324)
 [![CI/CD](https://github.com/gertjana/codemarks/workflows/CI%2FCD/badge.svg)](https://github.com/gertjana/codemarks/actions)
 [![codecov](https://codecov.io/gh/gertjana/codemarks/branch/main/graph/badge.svg)](https://codecov.io/gh/gertjana/codemarks)
 
