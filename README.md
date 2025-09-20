@@ -1,8 +1,9 @@
 # Codemarks
 
-![Rust](	https://img.shields.io/badge/Rust-black?style=for-the-badge&logo=rust&logoColor=#E57324)
 [![CI/CD](https://github.com/gertjana/codemarks/workflows/CI%2FCD/badge.svg)](https://github.com/gertjana/codemarks/actions)
 [![codecov](https://codecov.io/gh/gertjana/codemarks/branch/main/graph/badge.svg)](https://codecov.io/gh/gertjana/codemarks)
+![Rust](	https://img.shields.io/badge/Rust-black?style=for-the-badge&logo=rust&logoColor=#E57324)
+![MIT](https://img.shields.io/badge/MIT-green?style=for-the-badge)
 
 Codemarks is a CLI tool for scanning and managing code annotations such as `TODO`, `FIXME`, and `HACK` in your codebase. It helps you keep track of outstanding tasks and issues directly from your source code comments, storing them in a global database for easy review.
 
