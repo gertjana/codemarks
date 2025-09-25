@@ -17,14 +17,14 @@ pub fn clean_resolved(dry_run: bool, project_filter: Option<String>) -> Result<(
 
     for (project_name, codemarks) in &projects_db.projects {
         // Skip projects not matching the filter if one is specified
-        if let Some(ref filter) = project_filter {
-            if project_name != filter {
-                // Keep this project as-is if it doesn't match the filter
-                cleaned_db
-                    .projects
-                    .insert(project_name.clone(), codemarks.clone());
-                continue;
-            }
+        if let Some(ref filter) = project_filter
+            && project_name != filter
+        {
+            // Keep this project as-is if it doesn't match the filter
+            cleaned_db
+                .projects
+                .insert(project_name.clone(), codemarks.clone());
+            continue;
         }
 
         let original_count = codemarks.len();

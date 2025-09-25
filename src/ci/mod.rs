@@ -41,13 +41,13 @@ pub fn count_annotations(
         match result {
             Ok(entry) => {
                 let path = entry.path();
-                if path.is_file() {
-                    if let Ok(file) = std::fs::File::open(path) {
-                        let reader = BufReader::new(file);
-                        for line_content in reader.lines().map_while(Result::ok) {
-                            if codemark_regex.is_match(&line_content) {
-                                found += 1;
-                            }
+                if path.is_file()
+                    && let Ok(file) = std::fs::File::open(path)
+                {
+                    let reader = BufReader::new(file);
+                    for line_content in reader.lines().map_while(Result::ok) {
+                        if codemark_regex.is_match(&line_content) {
+                            found += 1;
                         }
                     }
                 }
@@ -84,21 +84,21 @@ pub fn run_ci(directory: &Path, pattern: Option<String>, ignore_patterns: &[Stri
     for result in builder.build() {
         if let Ok(entry) = result {
             let file_path = entry.path();
-            if entry.file_type().is_some_and(|ft| ft.is_file()) {
-                if let Ok(file) = fs::File::open(file_path) {
-                    let reader = BufReader::new(file);
-                    for (line_number, line) in reader.lines().enumerate() {
-                        if let Ok(line_content) = line {
-                            if codemark_regex.is_match(&line_content) {
-                                found += 1;
-                                println!(
-                                    "{}:{}: {}",
-                                    file_path.display(),
-                                    line_number + 1,
-                                    line_content
-                                );
-                            }
-                        }
+            if entry.file_type().is_some_and(|ft| ft.is_file())
+                && let Ok(file) = fs::File::open(file_path)
+            {
+                let reader = BufReader::new(file);
+                for (line_number, line) in reader.lines().enumerate() {
+                    if let Ok(line_content) = line
+                        && codemark_regex.is_match(&line_content)
+                    {
+                        found += 1;
+                        println!(
+                            "{}:{}: {}",
+                            file_path.display(),
+                            line_number + 1,
+                            line_content
+                        );
                     }
                 }
             }

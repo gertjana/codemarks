@@ -5,7 +5,7 @@
 ![Rust](	https://img.shields.io/badge/Rust-black?style=for-the-badge&logo=rust&logoColor=#E57324)
 ![MIT](https://img.shields.io/badge/MIT-green?style=for-the-badge)
 
-Codemarks is a CLI tool for scanning and managing code annotations such as `TODO`, `FIXME`, and `HACK` in your codebase. It helps you keep track of outstanding tasks and issues directly from your source code comments, storing them in a global database for easy review.
+Codemarks is a CLI tool for scanning and managing code annotations such as `TODO`, `FIXME`, and `HACK` in your codebase. It helps you keep track of outstanding tasks and issues directly from your source code comments.
 
 ## Installation
 Build from source using Cargo:
@@ -26,11 +26,6 @@ Run any command in ephemeral mode to disable storage (won't create or read ~/.co
 ./codemarks --ephemeral list
 ```
 
-This is useful for:
-- CI/CD environments where you don't want persistent files
-- One-time scans without affecting your global database
-- Testing or experimentation
-
 ### Show Version
 Print the current version of Codemarks.
 
@@ -39,7 +34,8 @@ Print the current version of Codemarks.
 ```
 
 ### Scan for Annotations
-Scan a directory (default: current directory) for code annotations and update the global database.
+Scan a directory (default: current directory) for code annotations and persists the results.
+It will detect whether they moved in the file or if they are deleted mark them as resolved.
 
 ```sh
 ./codemarks scan --directory path/to/your/project
@@ -59,7 +55,7 @@ List all code annotations found across scanned projects.
 ```
 
 ### Clean Resolved Annotations
-Remove resolved annotations from the global database. This helps keep your database clean by removing annotations that have been completed.
+Remove resolved annotations.
 
 ```sh
 ./codemarks clean
@@ -72,14 +68,12 @@ Remove resolved annotations from the global database. This helps keep your datab
 
 The clean command will:
 - Remove all annotations marked as resolved (`resolved: true`) from the database
-- Preserve unresolved annotations for continued tracking
 - Remove entire projects if all their annotations are resolved
-- Show detailed summary of what was removed
 
 Use the `--dry-run` option to preview what would be cleaned before making changes.
 
 ### CI/CD Mode
-Run in CI mode to scan for codemarks and return a non-zero exit code if any are found. Perfect for continuous integration pipelines. **CI mode automatically runs in ephemeral mode** (no storage files created).
+Run in CI mode to scan for codemarks and return a non-zero exit code if any are found. **CI mode automatically runs in ephemeral mode** (no storage files created).
 
 ```sh
 ./codemarks ci
@@ -98,7 +92,7 @@ The CI command will:
 - Run in ephemeral mode by default (no ~/.codemarks files created or read)
 
 ### Watch for Changes
-Watch a directory for file changes and automatically scan any modified files for annotations. This is perfect for development environments where you want real-time feedback on code annotations.
+Watch a directory for file changes and automatically scan any modified files for annotations.
 
 ```sh
 ./codemarks watch
@@ -113,12 +107,11 @@ Watch a directory for file changes and automatically scan any modified files for
 The watch command will:
 - Monitor the specified directory for file system changes
 - Automatically scan modified files for annotations
-- Update the global projects database in real-time
 - Respect `.gitignore` patterns and custom ignore rules
-- Use debouncing to avoid duplicate scans of rapidly changing files
+- Use debouncing (defaults to 2 seconds) to avoid duplicate scans of rapidly changing files
 
 ### Manage Configuration
-Show or update the global regex pattern for code annotations.
+Show or update the regex pattern for code annotations.
 
 #### Show Current Configuration
 ```sh
@@ -136,7 +129,7 @@ Show or update the global regex pattern for code annotations.
 ```
 
 ## Annotation Pattern
-By default, Codemarks matches lines like:
+By default, Codemarks matches comments that contain TODO or FIXME or HACK
 - `// TODO: ...`
 - `# FIXME ...`
 - `<!-- HACK ... -->`
@@ -242,13 +235,6 @@ Generate code coverage reports using the provided scripts:
 ```sh
 # Using grcov (recommended)
 ./scripts/coverage-grcov.sh
-
-# Using LLVM tools (if available)
-./scripts/coverage-llvm.sh
-
-# Using tarpaulin (if installed)
-./scripts/coverage.sh html
-```
 
 Coverage reports will be generated in the `target/coverage/` directory. Open `target/coverage/html/index.html` in your browser to view detailed coverage information.
 

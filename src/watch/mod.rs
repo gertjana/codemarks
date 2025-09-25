@@ -17,16 +17,16 @@ fn scan_file(file_path: &Path, annotation_pattern: &Regex) -> Result<Vec<Codemar
     let mut codemarks = Vec::new();
 
     for (line_number, line) in content.lines().enumerate() {
-        if let Some(captures) = annotation_pattern.captures(line) {
-            if let Some(description) = captures.get(1) {
-                let codemark = Codemark {
-                    file: file_path.to_string_lossy().to_string(),
-                    line_number: line_number + 1,
-                    description: description.as_str().trim().to_string(),
-                    resolved: false,
-                };
-                codemarks.push(codemark);
-            }
+        if let Some(captures) = annotation_pattern.captures(line)
+            && let Some(description) = captures.get(1)
+        {
+            let codemark = Codemark {
+                file: file_path.to_string_lossy().to_string(),
+                line_number: line_number + 1,
+                description: description.as_str().trim().to_string(),
+                resolved: false,
+            };
+            codemarks.push(codemark);
         }
     }
 
@@ -246,10 +246,10 @@ pub fn watch_directory(
 
                                     // Implement debouncing
                                     let now = Instant::now();
-                                    if let Some(last_time) = recent_events.get(&path) {
-                                        if now.duration_since(*last_time) < debounce_duration {
-                                            continue; // Skip this event due to debouncing
-                                        }
+                                    if let Some(last_time) = recent_events.get(&path)
+                                        && now.duration_since(*last_time) < debounce_duration
+                                    {
+                                        continue; // Skip this event due to debouncing
                                     }
                                     recent_events.insert(path.clone(), now);
 

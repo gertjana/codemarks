@@ -10,29 +10,28 @@ pub fn detect_project_name(directory: &Path) -> String {
 
     // Helper function to read and parse JSON files
     let read_json_field = |file_path: &Path, field: &str| -> Option<String> {
-        if file_path.exists() {
-            if let Ok(content) = fs::read_to_string(file_path) {
-                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                    if let Some(name) = json.get(field).and_then(|v| v.as_str()) {
-                        return Some(name.to_string());
-                    }
-                }
-            }
+        if file_path.exists()
+            && let Ok(content) = fs::read_to_string(file_path)
+            && let Ok(json) = serde_json::from_str::<serde_json::Value>(&content)
+            && let Some(name) = json.get(field).and_then(|v| v.as_str())
+        {
+            return Some(name.to_string());
         }
         None
     };
 
     // Helper function to read simple key=value files
     let read_key_value = |file_path: &Path, key: &str| -> Option<String> {
-        if file_path.exists() {
-            if let Ok(content) = fs::read_to_string(file_path) {
-                for line in content.lines() {
-                    let line = line.trim();
-                    if line.starts_with(key) && line.contains('=') {
-                        if let Some(value) = line.split('=').nth(1) {
-                            return Some(value.trim().trim_matches('"').to_string());
-                        }
-                    }
+        if file_path.exists()
+            && let Ok(content) = fs::read_to_string(file_path)
+        {
+            for line in content.lines() {
+                let line = line.trim();
+                if line.starts_with(key)
+                    && line.contains('=')
+                    && let Some(value) = line.split('=').nth(1)
+                {
+                    return Some(value.trim().trim_matches('"').to_string());
                 }
             }
         }
@@ -52,28 +51,32 @@ pub fn detect_project_name(directory: &Path) -> String {
     }
 
     // Go: go.mod
-    if let Ok(content) = fs::read_to_string(canonical_dir.join("go.mod")) {
-        if let Some(first_line) = content.lines().next() {
-            if first_line.starts_with("module ") {
-                let module_name = first_line.trim_start_matches("module ").trim();
-                // Extract just the project name from the full module path
-                if let Some(project_name) = module_name.split('/').next_back() {
-                    return project_name.to_string();
-                }
-                return module_name.to_string();
-            }
+    if let Ok(content) = fs::read_to_string(canonical_dir.join("go.mod"))
+        && let Some(first_line) = content.lines().next()
+        && first_line.starts_with("module ")
+    {
+        let module_name = first_line.trim_start_matches("module ").trim();
+        // Extract just the project name from the full module path
+        if let Some(project_name) = module_name.split('/').next_back() {
+            return project_name.to_string();
         }
+        return module_name.to_string();
     }
 
     // Scala: build.sbt
     if let Ok(content) = fs::read_to_string(canonical_dir.join("build.sbt")) {
         for line in content.lines() {
             let line = line.trim();
-            if line.starts_with("name :=") {
-                if let Some(name_part) = line.split(":=").nth(1) {
-                    let name = name_part.trim().trim_matches('"').trim();
-                    return name.to_string();
-                }
+            if line.starts_with("name :=")
+                && let Some(name_part) = line.split(":=").nth(1)
+            {
+                let name = name_part
+                    .trim()
+                    .trim_matches(',')
+                    .trim()
+                    .trim_matches('"')
+                    .trim();
+                return name.to_string();
             }
         }
     }
@@ -81,13 +84,13 @@ pub fn detect_project_name(directory: &Path) -> String {
     // Java: pom.xml (Maven)
     if let Ok(content) = fs::read_to_string(canonical_dir.join("pom.xml")) {
         // Simple XML parsing for <artifactId>
-        if let Some(start) = content.find("<artifactId>") {
-            if let Some(end) = content[start..].find("</artifactId>") {
-                let artifact_start = start + "<artifactId>".len();
-                let artifact_end = start + end;
-                if artifact_end > artifact_start {
-                    return content[artifact_start..artifact_end].trim().to_string();
-                }
+        if let Some(start) = content.find("<artifactId>")
+            && let Some(end) = content[start..].find("</artifactId>")
+        {
+            let artifact_start = start + "<artifactId>".len();
+            let artifact_end = start + end;
+            if artifact_end > artifact_start {
+                return content[artifact_start..artifact_end].trim().to_string();
             }
         }
     }
@@ -98,11 +101,12 @@ pub fn detect_project_name(directory: &Path) -> String {
             // Look for rootProject.name or archivesBaseName
             for line in content.lines() {
                 let line = line.trim();
-                if line.starts_with("rootProject.name") && line.contains('=') {
-                    if let Some(name_part) = line.split('=').nth(1) {
-                        let name = name_part.trim().trim_matches('"').trim_matches('\'');
-                        return name.to_string();
-                    }
+                if line.starts_with("rootProject.name")
+                    && line.contains('=')
+                    && let Some(name_part) = line.split('=').nth(1)
+                {
+                    let name = name_part.trim().trim_matches('"').trim_matches('\'');
+                    return name.to_string();
                 }
             }
         }
@@ -114,11 +118,11 @@ pub fn detect_project_name(directory: &Path) -> String {
         for line in content.lines() {
             let line = line.trim();
             if line.starts_with("app:") && line.contains(':') {
-                if let Some(app_part) = line.split(':').nth(1) {
-                    let app_name = app_part.trim().trim_matches(',').trim();
-                    if app_name.starts_with(':') {
-                        return app_name.trim_start_matches(':').to_string();
-                    }
+                // Split by ':' and get the last part (after the second colon)
+                let parts: Vec<&str> = line.split(':').collect();
+                if parts.len() >= 3 {
+                    let app_name = parts[2].trim().trim_matches(',').trim();
+                    return app_name.to_string();
                 }
             }
         }
@@ -128,11 +132,11 @@ pub fn detect_project_name(directory: &Path) -> String {
     if let Ok(content) = fs::read_to_string(canonical_dir.join("pyproject.toml")) {
         for line in content.lines() {
             let line = line.trim();
-            if line.starts_with("name =") {
-                if let Some(name_part) = line.split('=').nth(1) {
-                    let name = name_part.trim().trim_matches('"').trim_matches('\'');
-                    return name.to_string();
-                }
+            if line.starts_with("name =")
+                && let Some(name_part) = line.split('=').nth(1)
+            {
+                let name = name_part.trim().trim_matches('"').trim_matches('\'');
+                return name.to_string();
             }
         }
     }

@@ -68,14 +68,12 @@ pub fn load_global_config(ephemeral: bool) -> CodemarksConfig {
         return CodemarksConfig::default();
     }
 
-    if let Ok(config_path) = get_global_config_path() {
-        if config_path.exists() {
-            if let Ok(content) = fs::read_to_string(&config_path) {
-                if let Ok(config) = serde_json::from_str::<CodemarksConfig>(&content) {
-                    return config;
-                }
-            }
-        }
+    if let Ok(config_path) = get_global_config_path()
+        && config_path.exists()
+        && let Ok(content) = fs::read_to_string(&config_path)
+        && let Ok(config) = serde_json::from_str::<CodemarksConfig>(&content)
+    {
+        return config;
     }
     CodemarksConfig::default()
 }
@@ -97,14 +95,12 @@ pub fn load_global_projects(ephemeral: bool) -> ProjectsDatabase {
         return ProjectsDatabase::default();
     }
 
-    if let Ok(projects_path) = get_global_projects_path() {
-        if projects_path.exists() {
-            if let Ok(content) = fs::read_to_string(&projects_path) {
-                if let Ok(projects_db) = serde_json::from_str::<ProjectsDatabase>(&content) {
-                    return projects_db;
-                }
-            }
-        }
+    if let Ok(projects_path) = get_global_projects_path()
+        && projects_path.exists()
+        && let Ok(content) = fs::read_to_string(&projects_path)
+        && let Ok(projects_db) = serde_json::from_str::<ProjectsDatabase>(&content)
+    {
+        return projects_db;
     }
     ProjectsDatabase::default()
 }
@@ -179,7 +175,7 @@ enum Commands {
         #[arg(short, long)]
         ignore: Vec<String>,
         /// Debounce time in milliseconds to avoid duplicate events
-        #[arg(long, default_value = "500")]
+        #[arg(long, default_value = "2000")]
         debounce: Option<u64>,
     },
     /// Remove resolved annotations from the global database
@@ -233,10 +229,10 @@ fn initialize_codemarks() -> Result<()> {
 fn main() {
     let cli = Cli::parse();
 
-    if !cli.ephemeral {
-        if let Err(e) = initialize_codemarks() {
-            eprintln!("Warning: Failed to initialize codemarks: {e}");
-        }
+    if !cli.ephemeral
+        && let Err(e) = initialize_codemarks()
+    {
+        eprintln!("Warning: Failed to initialize codemarks: {e}");
     }
 
     match cli.command {

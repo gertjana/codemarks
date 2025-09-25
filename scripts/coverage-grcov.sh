@@ -40,6 +40,8 @@ grcov target/coverage \
     --ignore '*/rustlib/*' \
     --ignore '*/lib/rustlib/*' \
     --ignore '*/toolchains/*' \
+    --ignore '*/tests/*' \
+    --ignore '*/src/*/tests.rs' \
     --excl-line GRCOV_EXCL_LINE \
     --excl-start GRCOV_EXCL_START \
     --excl-stop GRCOV_EXCL_STOP \

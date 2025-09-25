@@ -49,28 +49,28 @@ pub fn scan_directory(
     for result in builder.build() {
         let Ok(entry) = result else { continue };
         let file_path = entry.path();
-        if entry.file_type().is_some_and(|ft| ft.is_file()) {
-            if let Ok(file) = fs::File::open(file_path) {
-                let reader = BufReader::new(file);
-                for (line_number, line) in reader.lines().enumerate() {
-                    if let Ok(line_content) = line {
-                        // Use the pattern only to match, but always store the entire line
-                        if codemark_regex.is_match(&line_content) {
-                            let description = line_content.clone();
-                            let relative_path =
-                                if let Ok(stripped) = file_path.strip_prefix(&canonical_dir) {
-                                    stripped.to_string_lossy().to_string()
-                                } else {
-                                    file_path.to_string_lossy().to_string()
-                                };
-                            let codemark = Codemark {
-                                file: relative_path,
-                                line_number: line_number + 1,
-                                description,
-                                resolved: false,
+        if entry.file_type().is_some_and(|ft| ft.is_file())
+            && let Ok(file) = fs::File::open(file_path)
+        {
+            let reader = BufReader::new(file);
+            for (line_number, line) in reader.lines().enumerate() {
+                if let Ok(line_content) = line {
+                    // Use the pattern only to match, but always store the entire line
+                    if codemark_regex.is_match(&line_content) {
+                        let description = line_content.clone();
+                        let relative_path =
+                            if let Ok(stripped) = file_path.strip_prefix(&canonical_dir) {
+                                stripped.to_string_lossy().to_string()
+                            } else {
+                                file_path.to_string_lossy().to_string()
                             };
-                            current_codemarks.push(codemark);
-                        }
+                        let codemark = Codemark {
+                            file: relative_path,
+                            line_number: line_number + 1,
+                            description,
+                            resolved: false,
+                        };
+                        current_codemarks.push(codemark);
                     }
                 }
             }
