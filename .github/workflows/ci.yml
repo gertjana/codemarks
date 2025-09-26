@@ -118,15 +118,12 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         slug: gertjana/codemarks
         file: target/coverage/lcov.info
-        fail_ci_if_error: true
 
-    - name: Upload junit.xml to Codecov
-      uses: codecov/codecov-action@v3
+    - name: Upload test results to Codecov
+      if: ${{ !cancelled() }}
+      uses: codecov/test-results-action@v1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        slug: gertjana/codemarks
-        file: target/nextest/ci/junit.xml
-        fail_ci_if_error: true
 
   build-and-release:
     name: Build and Release
