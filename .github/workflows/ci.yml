@@ -48,7 +48,7 @@ jobs:
     # - name: Run tests
     #   run: cargo test --all-features
     - name: Run nextest tests
-      run: cargo nextest run --profile ci --all-features
+      run: cargo nextest run --profile=ci --all-features
 
   coverage:
     name: Coverage
@@ -58,6 +58,12 @@ jobs:
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
+
+    - name: Install cargo-nextest
+      uses: baptiste0928/cargo-install@v3
+      with:
+        crate: cargo-nextest
+        locked: true
 
     - name: Cache cargo registry
       uses: actions/cache@v3
@@ -88,7 +94,7 @@ jobs:
         export RUSTFLAGS="-Cinstrument-coverage"
         export LLVM_PROFILE_FILE="target/coverage/codemarks-%p-%m.profraw"
         mkdir -p target/coverage
-        cargo test --all-features
+        cargo nextest run --all-features --profile=ci
         grcov target/coverage \
           --binary-path ./target/debug/ \
           --source-dir . \
