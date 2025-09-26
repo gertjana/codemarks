@@ -126,7 +126,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
 
   build-and-release:
-    name: ${{ matrix.os }} Build and Release
+    name: ${{ matrix.target }} - Build and Release
     runs-on: ${{ matrix.os }}
     needs: [test]
     strategy:
